@@ -1,0 +1,9 @@
+{
+    "prereqs" : {
+        "test" : {
+            "requires" : {
+                "Test::Class" : "0.41"
+            }
+        }
+    }
+}
