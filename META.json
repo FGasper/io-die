@@ -16,7 +16,11 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "Test::Class" : "0.41"
+            "Capture::Tiny" : "0.30",
+            "Test::Class" : "0.41",
+            "Test::Deep" : "0.01",
+            "Test::NoWarnings" : "0.01",
+            "Test::Trap" : "0.003002"
          }
       },
       "configure" : {
@@ -33,7 +37,7 @@
    "provides" : {
       "IO::Die" : {
          "file" : "lib/IO/Die.pm",
-         "version" : "0.024"
+         "version" : "0.025"
       }
    },
    "release_status" : "stable",
@@ -42,5 +46,5 @@
          "http://opensource.org/licenses/artistic-license-2.0.php"
       ]
    },
-   "version" : "0.024"
+   "version" : "0.025"
 }

@@ -3,7 +3,11 @@ abstract: 'Namespaced, error-checked I/O'
 author:
   - 'Felipe Gasper <felipe@cpanel.net>'
 build_requires:
+  Capture::Tiny: '0.30'
   Test::Class: '0.41'
+  Test::Deep: '0.01'
+  Test::NoWarnings: '0.01'
+  Test::Trap: v0.3.2
 configure_requires:
   Module::Build: '0'
 dynamic_config: 0

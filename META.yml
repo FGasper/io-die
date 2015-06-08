@@ -3,7 +3,11 @@ abstract: 'Namespaced, error-checked I/O'
 author:
   - 'Felipe Gasper <felipe@cpanel.net>'
 build_requires:
+  Capture::Tiny: '0.30'
   Test::Class: '0.41'
+  Test::Deep: '0.01'
+  Test::NoWarnings: '0.01'
+  Test::Trap: '0.003002'
 configure_requires:
   Module::Build: '0'
 dynamic_config: 1
@@ -16,9 +20,9 @@ name: IO-Die
 provides:
   IO::Die:
     file: lib/IO/Die.pm
-    version: '0.024'
+    version: '0.025'
 requires:
   perl: '5.006'
 resources:
   license: http://opensource.org/licenses/artistic-license-2.0.php
-version: '0.024'
+version: '0.025'

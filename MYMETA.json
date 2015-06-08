@@ -16,7 +16,11 @@
    "prereqs" : {
       "build" : {
          "requires" : {
-            "Test::Class" : "0.41"
+            "Capture::Tiny" : "0.30",
+            "Test::Class" : "0.41",
+            "Test::Deep" : "0.01",
+            "Test::NoWarnings" : "0.01",
+            "Test::Trap" : "v0.3.2"
          }
       },
       "configure" : {

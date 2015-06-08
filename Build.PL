@@ -13,7 +13,11 @@ my $builder = Module::Build->new(
         'Module::Build' => 0,
     },
     build_requires => {
+        'Capture::Tiny' => '0.30',
         'Test::Class' => '0.41',
+        'Test::Deep'  => '0.01',
+        'Test::NoWarnings' => '0.01',
+        'Test::Trap'  => '0.3.2',
     },
     requires => {
         perl => '5.006',

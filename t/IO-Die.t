@@ -418,7 +418,7 @@ sub _test_read_func {
         $func_cr->( 'IO::Die', $fh, $buffer, 7 );
     };
     like( $trap->die(), qr<Read>, 'error read on a closed filehandle' );
-    like( $trap->die(), qr<7>,         '...and the error has the intended number of bytes' );
+    like( $trap->die(), qr<7>,    '...and the error has the intended number of bytes' );
 
     return;
 }
@@ -438,7 +438,7 @@ sub test_print_with_filehandle : Tests(10) {
     ok( $printed, '...and it returns a true value' );
     is( do { local $!; scalar `cat $file` }, 'haha', '...and the print actually happened' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     for ('hoho') {
         trap {
@@ -457,7 +457,7 @@ sub test_print_with_filehandle : Tests(10) {
     };
     $trap->did_die('print() dies when writing to a non-write filehandle');
     like( $trap->die(), qr<Write>, '...and the exception' );
-    like( $trap->die(), qr<5>,          '...and the exception contains the total number of bytes' );
+    like( $trap->die(), qr<5>,     '...and the exception contains the total number of bytes' );
 
     return;
 }
@@ -501,7 +501,7 @@ sub test_print_without_filehandle : Tests(9) {
 
     $trap->did_die('print() dies when the filehandle is closed');
     like( $trap->die(), qr<Write>, '...and the exception' );
-    like( $trap->die(), qr<4>,          '...and the exception contains the total number of bytes' );
+    like( $trap->die(), qr<4>,     '...and the exception contains the total number of bytes' );
 
     return;
 }
@@ -519,7 +519,7 @@ sub test_syswrite : Tests(14) {
     };
     $trap->did_return('write to a file with a given string');
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     is( $printed, 4, '...and it returns the number of bytes' );
     is( ( scalar `cat $file` ), 'haha', '...and the write actually happened' );
@@ -540,7 +540,7 @@ sub test_syswrite : Tests(14) {
         IO::Die->syswrite( $rfh, 'abcde' );
     };
     like( $trap->die(), qr<Write>, 'exception when writing to a non-write filehandle' );
-    like( $trap->die(), qr<5>,          '...and the exception contains the number of bytes meant to be written' );
+    like( $trap->die(), qr<5>,     '...and the exception contains the number of bytes meant to be written' );
 
     trap {
         IO::Die->syswrite( $rfh, 'abcde', 2 );
@@ -585,7 +585,7 @@ sub test_close_with_filehandle : Tests(6) {
     ok( $closed,            '...and the return value is truthy' );
     ok( !CORE::fileno($fh), '...and the filehandle actually closed' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     trap {
         IO::Die->close($fh);
@@ -783,7 +783,7 @@ sub test_opendir : Tests(6) {
     };
     like( $trap->die(), qr<DirectoryOpen>, 'error from opening nonexistent directory' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -842,7 +842,7 @@ sub test_rewinddir : Tests(5) {
     };
     like( $trap->die(), qr<DirectoryRewind>, 'error from closing already-closed directory' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::EBADF() );
 
@@ -874,7 +874,7 @@ sub test_closedir : Tests(5) {
     };
     like( $trap->die(), qr<DirectoryClose>, 'error from closing already-closed directory' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::EBADF() );
 
@@ -917,7 +917,7 @@ sub test_unlink : Tests(10) {
     };
     like( $trap->die(), qr<Unlink>, 'failure when unlink()ing a nonexistent file' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -966,7 +966,7 @@ sub test_mkdir : Tests(10) {
     };
     like( $trap->die(), qr<DirectoryCreate>, 'failure when mkdir()ing a directory in a nonexistent directory' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -1009,7 +1009,7 @@ sub test_rmdir : Tests(10) {
     };
     like( $trap->die(), qr<DirectoryDelete>, 'failure when rmdir()ing a nonexistent directory' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -1055,7 +1055,7 @@ sub test_chmod : Tests(12) {
     };
     like( $trap->die(), qr<Chmod>, 'failure when chmod()ing a closed filehandle' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
   TODO: {
         local $TODO = 'https://rt.perl.org/Ticket/Display.html?id=122703';
@@ -1127,7 +1127,7 @@ sub test_chown : Tests(12) {
         };
         like( $trap->die(), qr<Chown>, 'failure when chown()ing a closed filehandle' );
 
-            is( 0 + $!, 7, '...and it left $! alone' );
+        is( 0 + $!, 7, '...and it left $! alone' );
 
       TODO: {
             local $TODO = 'https://rt.perl.org/Ticket/Display.html?id=122703';
@@ -1184,7 +1184,7 @@ sub test_stat : Tests(6) {
     };
     like( $trap->die(), qr<Stat>, 'failure when stat()ing a nonexistent path' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -1242,7 +1242,7 @@ sub test_lstat : Tests(7) {
     };
     like( $trap->die(), qr<Stat>, 'failure when lstat()ing a nonexistent symlink' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -1282,7 +1282,7 @@ sub test_link : Tests(6) {
     };
     like( $trap->die(), qr<Link>, 'failure when link()ing to a nonexistent file' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -1325,7 +1325,7 @@ sub test_symlink : Tests(7) {
     };
     like( $trap->die(), qr<SymlinkCreate>, 'failure when creating a symlink() in a nonexistent directory' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -1370,7 +1370,7 @@ sub test_readlink : Tests(10) {
             "exception’s error()",
         ) or diag explain $trap->die();
 
-            is( 0 + $!, 7, '...and it left $! alone' );
+        is( 0 + $!, 7, '...and it left $! alone' );
     }
 
     trap {
@@ -1425,7 +1425,7 @@ sub test_rename : Tests(6) {
     };
     like( $trap->die(), qr<Rename>, 'failure when rename()ing a nonexistent file' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
@@ -1672,7 +1672,7 @@ sub test_fcntl : Tests(5) {
     };
     like( $trap->die(), qr<Fcntl>, 'error from fcntl() on closed filehandle' );
 
-        is( 0 + $!, 7, '...and it left $! alone' );
+    is( 0 + $!, 7, '...and it left $! alone' );
 
     return;
 }
@@ -1729,7 +1729,7 @@ sub test_select : Tests(12) {
     is( 0 + $!,  5, '$! is left alone' );
     is( 0 + $^E, 5, '$^E is left alone' );
 
-    is( $rbits, "\0",      'initial read bits on a single-process pipe' );
+    like( $rbits, qr<\A\0+\z>, 'initial read bits on a single-process pipe' );
     is( $wbits, $wtr_mask, 'initial write bits on a single-process pipe' );
 
     IO::Die->syswrite( $wtr, 'haha' );
@@ -1999,8 +1999,8 @@ sub test_binmode : Tests(9) {
     $err = $@;
 
     like( $err, qr<Binmode>, 'error type in error' );
-    like( $err, qr<:raw>,         'default layer is in error' );
-    like( $err, qr<layer>,        '...and it’s called “layer”' );
+    like( $err, qr<:raw>,    'default layer is in error' );
+    like( $err, qr<layer>,   '...and it’s called “layer”' );
 
     my $errstr = do { local $! = Errno::EBADF(); "$!" };
     like( $err, qr<$errstr>, '...and the error is as expected' );
@@ -2036,7 +2036,7 @@ use strict;
 use parent -norequire, 'IO::Die';
 
 sub _CREATE_ERROR {
-    my ($NS, $type, @attrs) = @_;
+    my ( $NS, $type, @attrs ) = @_;
 
     return {
         type  => $type,
