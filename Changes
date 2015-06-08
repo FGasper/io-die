@@ -5,3 +5,7 @@ Revision history for IO-Die
 
 0.02    Fix docs
         Remove cPanel references in tests
+
+0.021   Update dependencies in build file
+
+0.022   Reference GitHub repository in docs

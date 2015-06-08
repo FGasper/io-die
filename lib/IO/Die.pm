@@ -10,11 +10,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.01
+Version 0.022
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.022';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -1124,45 +1124,19 @@ Additional attributes for each type are listed below.
 
 Felipe Gasper, working for cPanel, Inc.
 
-=head1 BUGS
+=head1 REPOSITORY
 
-Please report any bugs or feature requests to C<bug-fatalio at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=IO::Die>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
+L<https://github.com/FGasper/io-die>
 
+=head1 REPORTING BUGS
+
+Open an issue at the GitHub URL above. Patches are welcome!
 
 =head1 SUPPORT
 
 You can find documentation for this module with the perldoc command.
 
     perldoc IO::Die
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker (report bugs here)
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Die>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/IO-Die>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/IO-Die>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/IO-Die/>
-
-=back
-
-
-=head1 ACKNOWLEDGEMENTS
-
 
 =head1 LICENSE AND COPYRIGHT
 
