@@ -14,7 +14,7 @@ Version 0.01
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -435,7 +435,7 @@ sub flock {
 #multiple chmod() operations within the same call. This is in order to provide
 #reliable error reporting.
 #
-#You, of course, can still do: IO::Die::chmod() for @items;
+#You, of course, can still do: IO::Die->chmod() for @items;
 #
 sub chmod {
     my ( $NS, $mode, $target, @too_many_args ) = @_;
@@ -461,7 +461,7 @@ sub chmod {
 #multiple chown() operations within the same call. This is in order to provide
 #reliable error reporting.
 #
-#You, of course, can still do: IO::Die::chown() for @items;
+#You, of course, can still do: IO::Die->chown() for @items;
 #
 sub chown {
     my ( $NS, $uid, $gid, $target, @too_many_args ) = @_;
@@ -522,7 +522,7 @@ sub rename {
 #multiple unlink() operations within the same call. This is in order to provide
 #reliable error reporting.
 #
-#You, of course, can still do: IO::Die::unlink() for @files;
+#You, of course, can still do: IO::Die->unlink() for @files;
 #
 sub unlink {
     my ($NS, @paths) = @_;
@@ -642,7 +642,7 @@ sub utime {
     my ( $NS, $atime, $mtime, @files ) = @_;
 
     local ( $!, $^E );
-    return utime( $fh, $atime, $mtime, @files ) || do {
+    return utime( $atime, $mtime, @files ) || do {
         $NS->__THROW('Utime', atime => $atime, mtime => $mtime, files => \@files);
     };
 }
@@ -980,96 +980,22 @@ the error.
 
 This always treats the first argument as the program name, so if you do:
 
-    IO::Die::exec('/bin/echo haha');
+    IO::Die->exec('/bin/echo haha');
 
 … that will actually attempt to execute a program named C<echo haha> in the
 directory C</bin>, which probably isn’t what you wanted and will thus fail.
-(In the above case, what was likely desired was C<IO::Die::exec('/bin/echo', 'haha')>.)
-
-=head1 FUNCTIONS THAT LARGELY MATCH THEIR RELEVANT PERL BUILT-INS
-
-The following have no significant differences with Perl built-ins other than
-that function prototypes and bareword filehandles are unsupported.
-
-=over 4
-
-=item sysopen()
-
-=item close()
-
-=item print()
-
-=item syswrite()
-
-=item read()
-
-=item sysread()
-
-=item seek()
-
-=item sysseek()
-
-=item truncate()
-
-=item opendir()
-
-=item rewinddir()
-
-=item closedir()
-
-=item stat()
-
-=item lstat()
-
-=item rename()
-
-=item link()
-
-=item symlink()
-
-=item readlink()
-
-=item mkdir()
-
-=item rmdir()
-
-=item fork()
-
-=item pipe()
-
-=item fcntl()
-
-=item binmode()
-
-=item socket()
-
-=item socketpair()
-
-=item bind()
-
-=item connect()
-
-=item accept()
-
-=item getsockopt()
-
-=item setsockopt()
-
-=item listen()
-
-=item recv()
-
-=item send()
-
-=item shutdown()
-
-=back
+(In the above case, what was likely desired was C<IO::Die->exec('/bin/echo', 'haha')>.)
 
 =head1 CONVENIENCE FUNCTIONS
 
 =head2 systell( FILEHANDLE )
 
 This function returns the unbuffered file pointer position.
+
+=head1 FUNCTIONS THAT LARGELY MATCH THEIR RELEVANT PERL BUILT-INS
+
+The remaining functions intend to match their corresponding Perl built-ins;
+differences should be regarded as bugs to be fixed!
 
 =head1 CUSTOM ERROR HANDLING
 

@@ -13,7 +13,7 @@ my $builder = Module::Build->new(
         'Module::Build' => 0,
     },
     build_requires => {
-        'Test::More' => 0,
+        'Test::Class' => 1,
     },
     requires => {
         #'ABC'              => 1.6,
