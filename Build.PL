@@ -13,11 +13,10 @@ my $builder = Module::Build->new(
         'Module::Build' => 0,
     },
     build_requires => {
-        'Test::Class' => 1,
+        'Test::Class' => '0.41',
     },
     requires => {
-        #'ABC'              => 1.6,
-        #'Foo::Bar::Module' => 5.0401,
+        perl => '5.006',
     },
     add_to_cleanup     => [ 'IO-Die-*' ],
     create_makefile_pl => 'traditional',

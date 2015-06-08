@@ -2,7 +2,9 @@ package IO::Die;
 
 use 5.006;
 use strict;
-use warnings;
+
+#not in production
+#use warnings;
 
 =head1 NAME
 
@@ -10,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.01
+Version 0.024
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.024';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -882,7 +884,10 @@ from that module that you may appreciate:
 * C<IO::Die> does not use function prototypes and does not export:
 all calls into C<IO::Die> (or subclasses) “look like” what they are.
 
-* C<IO::Die> is much lighter than C<autodie>!
+* C<IO::Die> does not try to impose its own error handling; you can customize
+both how to represent errors and what to do with them.
+
+* C<IO::Die> seems lighter than C<autodie> in simple memory usage checks. YMMV.
 
 For the most part, you can simply replace:
 
@@ -1124,45 +1129,27 @@ Additional attributes for each type are listed below.
 
 Felipe Gasper, working for cPanel, Inc.
 
-=head1 BUGS
+=head1 REPOSITORY
 
-Please report any bugs or feature requests to C<bug-fatalio at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=IO::Die>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
+L<https://github.com/FGasper/io-die>
 
+=head1 REPORTING BUGS
+
+Open an issue at the GitHub URL above. Patches are welcome!
+
+=head1 TODO
+
+=over 4
+
+=item * More tests, especially for socket functions.
+
+=back
 
 =head1 SUPPORT
 
 You can find documentation for this module with the perldoc command.
 
     perldoc IO::Die
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker (report bugs here)
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Die>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/IO-Die>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/IO-Die>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/IO-Die/>
-
-=back
-
-
-=head1 ACKNOWLEDGEMENTS
-
 
 =head1 LICENSE AND COPYRIGHT
 
