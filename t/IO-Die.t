@@ -1,12 +1,17 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 
 package t::IO::Die;
 
 use strict;
 use warnings;
-use autodie;
 
-use parent qw(
+BEGIN {
+    if ($^V ge v5.10.0) {
+        require autodie;
+    }
+}
+
+use base qw(
   Test::Class
 );
 
@@ -2033,7 +2038,7 @@ package IO::Die::Subclass;
 
 use strict;
 
-use parent -norequire, 'IO::Die';
+use base 'IO::Die';
 
 sub _CREATE_ERROR {
     my ( $NS, $type, @attrs ) = @_;

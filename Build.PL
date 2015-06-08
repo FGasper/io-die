@@ -13,6 +13,7 @@ my $builder = Module::Build->new(
         'Module::Build' => 0,
     },
     build_requires => {
+        perl            => '5.008',
         'Capture::Tiny' => '0.30',
         'Test::Class' => '0.41',
         'Test::Deep'  => '0.01',
@@ -20,7 +21,7 @@ my $builder = Module::Build->new(
         'Test::Trap'  => '0.3.2',
     },
     requires => {
-        perl => '5.006',
+        perl => '5.006',    #should work, but the test suite will require 5.8
     },
     add_to_cleanup     => [ 'IO-Die-*' ],
     create_makefile_pl => 'traditional',

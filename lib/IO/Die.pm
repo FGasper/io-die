@@ -24,7 +24,7 @@ our $VERSION = '0.025';
 #Override in subclasses as needed
 sub _CREATE_ERROR {
     shift;
-    return shift . ": @_";
+    return shift() . ": @_";
 }
 
 sub _DO_WITH_ERROR { die $_[1] }
@@ -86,7 +86,7 @@ sub __is_a_fh {
 sub open {
     my ( $NS, $handle_r, $mode, $expr, @list ) = ( shift, \shift, @_ );
 
-    die "Avoid bareword file handles." if !ref $$handle_r && length $$handle_r;
+    die "Avoid bareword file handles." if !ref $$handle_r && defined $$handle_r && length $$handle_r;
     die "Avoid one-argument open()." if !$mode;
 
     local ( $!, $^E );
