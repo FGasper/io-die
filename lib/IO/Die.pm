@@ -12,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.026
+Version 0.027
 
 =cut
 
-our $VERSION = '0.026';
+our $VERSION = '0.027';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -953,7 +953,7 @@ C<syscall()>, semaphore functions, etc. These can be implemented as needed.
 =head1 FUNCTIONS THAT DIFFER SIGNIFICANTLY FROM THEIR PERL BUILT-INS
 
 The following are not complete descriptions of each function; rather,
-this describes the *differences* between the relevant Perl built-in and
+this describes the B<differences> between the relevant Perl built-in and
 C<IO::Die>’s wrapper of it. It is assumed that the reader is familiar
 with the built-in form.
 
@@ -989,7 +989,9 @@ This always treats the first argument as the program name, so if you do:
 
 … that will actually attempt to execute a program named C<echo haha> in the
 directory C</bin>, which probably isn’t what you wanted and will thus fail.
-(In the above case, what was likely desired was C<IO::Die->exec('/bin/echo', 'haha')>.)
+(In the above case, what was likely desired was:
+
+    IO::Die->exec('/bin/echo', 'haha');
 
 =head1 CONVENIENCE FUNCTIONS
 

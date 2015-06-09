@@ -8,6 +8,7 @@ build_requires:
   Test::Deep: '0.01'
   Test::NoWarnings: '0.01'
   Test::Trap: v0.3.2
+  perl: '5.008'
 configure_requires:
   Module::Build: '0'
 dynamic_config: 0
@@ -20,9 +21,9 @@ name: IO-Die
 provides:
   IO::Die:
     file: lib/IO/Die.pm
-    version: '0.024'
+    version: '0.026'
 requires:
   perl: '5.006'
 resources:
   license: http://opensource.org/licenses/artistic-license-2.0.php
-version: '0.024'
+version: '0.026'
