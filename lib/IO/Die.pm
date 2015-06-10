@@ -12,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.03
+Version 0.031
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.031';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -1071,6 +1071,8 @@ Additional attributes for each type are listed below.
 =over 4
 
 =item Binmode           layer
+
+=item Chdir             OPTIONAL: path
 
 =item Chmod             permissions, path
 
