@@ -12,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.027
+Version 0.03
 
 =cut
 
-our $VERSION = '0.027';
+our $VERSION = '0.03';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -158,13 +158,47 @@ sub chroot {
 
     local ( $!, $^E );
 
-    if (!defined $filename) {
+    if ( !defined $filename ) {
         $filename = $_;
     }
 
     return CORE::chroot($filename) || do {
         $NS->__THROW( 'Chroot', filename => $filename );
     };
+}
+
+sub chdir {
+    my ( $NS, @args ) = @_;
+
+    local ( $!, $^E );
+
+    my $ret;
+
+    if (@args) {
+        $ret = chdir( $args[0] ) or do {
+            if ( __is_a_fh( $args[0] ) ) {
+                $NS->__THROW('Chdir');
+            }
+            else {
+                $NS->__THROW( 'Chdir', path => $args[0] );
+            }
+        };
+    }
+    else {
+        $ret = chdir or do {
+            my $path = $ENV{'HOME'};
+            if ( !defined $path ) {
+                $path = $ENV{'LOGDIR'};
+            }
+            if ( !defined $path ) {
+                $NS->__THROW('Chdir');
+            }
+
+            $NS->__THROW( 'Chdir', path => $path );
+        };
+    }
+
+    return $ret;
 }
 
 #A bit more restrictive than Perl’s built-in print():
@@ -302,7 +336,7 @@ sub sysread {
 }
 
 sub close {
-    my ($NS, $fh ) = @_;
+    my ( $NS, $fh ) = @_;
 
     local ( $!, $^E );
     return ( $fh ? CORE::close($fh) : CORE::close() ) || do {
@@ -352,7 +386,7 @@ sub opendir {
 }
 
 sub rewinddir {
-    my ($NS, $dh) = @_;
+    my ( $NS, $dh ) = @_;
 
     local ( $!, $^E );
     return CORE::rewinddir($dh) || do {
@@ -361,7 +395,7 @@ sub rewinddir {
 }
 
 sub closedir {
-    my ($NS, $dh) = @_;
+    my ( $NS, $dh ) = @_;
 
     local ( $!, $^E );
     return CORE::closedir($dh) || do {
@@ -373,7 +407,7 @@ sub closedir {
 
 #NOTE: To get stat(_), do stat(\*_).
 sub stat {
-    my ($NS, $path_or_fh) = @_;
+    my ( $NS, $path_or_fh ) = @_;
 
     local ( $!, $^E );
 
@@ -392,7 +426,7 @@ sub stat {
 
 #NOTE: To get lstat(_), do lstat(\*_).
 sub lstat {
-    my ($NS, $path_or_fh) = @_;
+    my ( $NS, $path_or_fh ) = @_;
 
     local ( $!, $^E );
 
@@ -417,8 +451,8 @@ sub fileno {
     local ( $!, $^E );
     my $fileno = CORE::fileno($fh);
 
-    if (!defined $fileno) {
-        $NS->__THROW( 'Fileno' );
+    if ( !defined $fileno ) {
+        $NS->__THROW('Fileno');
     }
 
     return $fileno;
@@ -527,7 +561,7 @@ sub rename {
 #You, of course, can still do: IO::Die->unlink() for @files;
 #
 sub unlink {
-    my ($NS, @paths) = @_;
+    my ( $NS, @paths ) = @_;
 
     #This is here because it’s impossible to do reliable error-checking when
     #you operate on >1 filesystem node at once.
@@ -544,7 +578,7 @@ sub unlink {
 }
 
 sub mkdir {
-    my ($NS, @args) = @_;
+    my ( $NS, @args ) = @_;
 
     local ( $!, $^E );
 
@@ -568,7 +602,7 @@ sub mkdir {
 }
 
 sub rmdir {
-    my ($NS, @args) = @_;
+    my ( $NS, @args ) = @_;
 
     #Perl's rmdir() doesn’t actually allow batching like this,
     #but we might as well prevent anyone from trying.
@@ -609,7 +643,7 @@ sub kill {
 }
 
 sub exec {
-    my ($NS, $progname) = @_;
+    my ( $NS, $progname ) = @_;
 
     exec {$progname} $progname, @_ or do {
         $NS->__THROW( 'Exec', program => $progname, arguments => \@_ );
@@ -645,7 +679,7 @@ sub utime {
 
     local ( $!, $^E );
     return utime( $atime, $mtime, @files ) || do {
-        $NS->__THROW('Utime', atime => $atime, mtime => $mtime, files => \@files);
+        $NS->__THROW( 'Utime', atime => $atime, mtime => $mtime, files => \@files );
     };
 }
 
@@ -788,7 +822,7 @@ sub send {
 sub shutdown {
     my ( $NS, $socket, $how ) = @_;
 
-    local ($!, $^E);
+    local ( $!, $^E );
 
     my $res = CORE::shutdown( $socket, $how );
     if ( !$res ) {
@@ -808,7 +842,7 @@ my $Fcntl_SEEK_CUR = 1;
 #Note that, since we die() on error, this does NOT return "0 but true"
 #as sysseek() does; instead it returns just a plain 0.
 sub systell {
-    my ($NS, $fh) = @_;
+    my ( $NS, $fh ) = @_;
 
     #cf. perldoc -f tell
     return 0 + $NS->sysseek( $fh, 0, $Fcntl_SEEK_CUR );
@@ -933,11 +967,6 @@ Some functions, however, are not implemented here by design:
 
 * C<readline()> and C<readdir()>: Perl’s built-ins do lots of "magic" (e.g.,
 considering '0' as true in a C<while()>) that would be hard to implement.
-If you need performance, write out the error checking manually.
-
-* C<chdir()>: A process’s directory is essentially an OS-level “global variable”.
-Anything that does change it should probably put it back.
-CPAN’s File::chdir module provides an easier solution for this.
 
 * C<system()>: This one does a lot “under the hood”, and it’s not feasible
 to avoid clobbering global $? if you use it.

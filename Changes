@@ -14,5 +14,9 @@ Revision history for IO-Die
 
 0.025   Version bump
 
-0.026   Test suite compatibility: 5.8 - 5.22
+0.026
+        Test suite compatibility: 5.8 - 5.22
         The module should also work in 5.6, but the tests can't verify that.
+
+0.03
+        chdir() added

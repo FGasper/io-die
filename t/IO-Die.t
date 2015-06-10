@@ -6,7 +6,7 @@ use strict;
 use warnings;
 
 BEGIN {
-    if ($^V ge v5.10.0) {
+    if ( $^V ge v5.10.0 ) {
         require autodie;
     }
 }
@@ -18,6 +18,7 @@ use base qw(
 use List::Util qw(reduce);
 our ( $a, $b );
 
+use Cwd    ();
 use Socket ();
 use Errno  ();
 use Fcntl;
@@ -1025,6 +1026,175 @@ sub test_rmdir : Tests(10) {
     ) or diag explain $trap->die();
 
     return;
+}
+
+sub test_chdir : Tests(22) {
+    my ($self) = @_;
+
+    my $orig_dir = _getcwd();
+
+    local ( $!, $^E, $@ );
+
+    my $tdir  = Cwd::abs_path( $self->tempdir() );
+    my $tdir2 = Cwd::abs_path( $self->tempdir() );
+
+    $! = 5;
+
+    try {
+        ok(
+            IO::Die->chdir($tdir),
+            'chdir() as normal, to an existent directory',
+        );
+
+        is( _getcwd(), $tdir, '...and it really did chdir()' );
+
+        is(
+            0 + $!,
+            5,
+            '...and it leaves $! alone',
+        );
+
+        #----------------------------------------------------------------------
+
+        my $dir_fh;
+        {
+            local ( $!, $^E );
+            open $dir_fh, '<', $tdir2;
+        }
+
+        ok(
+            IO::Die->chdir($dir_fh),
+            'chdir() to a file handle (??)',
+        );
+
+        is( _getcwd(), $tdir2, '...and it really did chdir()' );
+
+        is(
+            0 + $!,
+            5,
+            '...and it leaves $! alone',
+        );
+
+        #----------------------------------------------------------------------
+
+        my $dir_dh;
+        {
+            local ( $!, $^E );
+            opendir $dir_dh, $tdir;
+        }
+
+        ok(
+            IO::Die->chdir($dir_dh),
+            'chdir() to a dir handle',
+        );
+
+        is( _getcwd(), $tdir, '...and it really did chdir()' );
+
+        is(
+            0 + $!,
+            5,
+            '...and it leaves $! alone',
+        );
+
+        #----------------------------------------------------------------------
+
+        dies_ok(
+            sub { IO::Die->chdir("$tdir2/notthere") },
+            'chdir() as normal, to a non-existent directory',
+        );
+        my $err = $@;
+
+        #cf. https://github.com/rjbs/Test-Deep/issues/26
+        {
+            local ( $!, $^E );
+            all();
+            re(qr<.>);
+        }
+
+        cmp_deeply(
+            $err,
+            all(
+                re(qr<Chdir:>),
+                re(qr<path +\Q$tdir2\E/notthere>),
+                re(qr<OS_ERROR +>),
+                re(qr<EXTENDED_OS_ERROR +>),
+            ),
+            'exception has the right “goods”',
+        );
+
+        is(
+            0 + $!,
+            5,
+            '...and failure leaves $! alone',
+        );
+
+        is( _getcwd(), $tdir, '...and it did NOT chdir()' );
+
+        #----------------------------------------------------------------------
+        {
+            local %ENV = (
+                HOME   => "$tdir/home",
+                LOGDIR => "$tdir/logdir",
+            );
+            dies_ok(
+                sub { IO::Die->chdir() },
+                'chdir() with no args, to a non-existent directory',
+            );
+            my $err = $@;
+
+            like( $err, qr<\Q$tdir\E/home>, 'it tried to chdir() to $ENV{HOME}' );
+
+            is(
+                0 + $!,
+                5,
+                '...and failure leaves $! alone',
+            );
+
+            {
+                local ( $!, $^E );
+                mkdir "$tdir/$_" for qw( home logdir );
+            }
+
+            ok(
+                IO::Die->chdir(),
+                'chdir() with no args when $ENV{HOME} is a real directory',
+            );
+
+            is( _getcwd(), "$tdir/home", '...and it did chdir()' );
+
+            delete $ENV{'HOME'};
+
+            ok(
+                IO::Die->chdir(),
+                'chdir() with no args when $ENV{LOGDIR} is a real directory',
+            );
+
+            is( _getcwd(), "$tdir/logdir", '...and it did chdir()' );
+
+            delete $ENV{'LOGDIR'};
+
+            #TODO: This doesn’t seem right: “perldoc -f chdir” seems to imply that
+            #Perl “happily” does nothing here. “Does nothing” should not be an
+            #error state. (cf. https://rt.perl.org/Ticket/Display.html?id=125373)
+            dies_ok(
+                sub { IO::Die->chdir() },
+                'chdir() with no args when neither $ENV{HOME} nor $ENV{LOGDIR} is set',
+            );
+
+            is( _getcwd(), "$tdir/logdir", '...and it did NOT chdir()' );
+        }
+    }
+    catch { die $_ }
+    finally {
+        chdir($orig_dir);
+    };
+
+    return;
+}
+
+sub _getcwd {
+    local ( $!, $^E );
+    return Cwd::getcwd();
 }
 
 sub test_chmod : Tests(12) {
