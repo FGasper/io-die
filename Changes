@@ -20,3 +20,6 @@ Revision history for IO-Die
 
 0.03
         chdir() added
+
+0.033
+        chdir() fallback on VMS (UNTESTED!)

@@ -21,9 +21,9 @@ name: IO-Die
 provides:
   IO::Die:
     file: lib/IO/Die.pm
-    version: '0.032'
+    version: '0.033'
 requires:
   perl: '5.006'
 resources:
   license: http://opensource.org/licenses/artistic-license-2.0.php
-version: '0.032'
+version: '0.033'

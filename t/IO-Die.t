@@ -1028,6 +1028,75 @@ sub test_rmdir : Tests(10) {
     return;
 }
 
+sub test_chdir_vms_homedir : Tests(6) {
+    my ($self) = @_;
+
+    note 'XXX: I have no idea if this actually works on VMS.';
+
+  SKIP: {
+        skip 'Only runs on VMS!', $self->num_tests() if $^O ne 'VMS';
+
+        my $orig_dir = _getcwd();
+        my $tdir     = Cwd::abs_path( $self->tempdir() );
+
+        local $! = 5;
+
+        try {
+
+            local %ENV = (
+                'SYS$HOME' => $tdir,
+            );
+
+            ok(
+                IO::Die->chdir(),
+                q<empty chdir() with $ENV{'SYS$HOME'} (but neither HOME nor LOGDIR) defined>,
+            );
+
+            is( _getcwd(), $tdir, '...and it did chdir()' );
+
+            is(
+                0 + $!,
+                5,
+                '...and failure leaves $! alone',
+            );
+
+            #----------------------------------------------------------------------
+
+            $ENV{'SYS$HOME'} = "$tdir/notthere";
+
+            dies_ok(
+                sub { IO::Die->chdir("$tdir/notthere") },
+                'chdir() as normal, to a non-existent directory',
+            );
+            my $err = $@;
+
+            _preload_Test_Deep();
+
+            cmp_deeply(
+                $err,
+                all(
+                    re(qr<Chdir:>),
+                    re(qr<path +\Q$tdir\E/notthere>),
+                    re(qr<OS_ERROR +>),
+                    re(qr<EXTENDED_OS_ERROR +>),
+                ),
+                'exception has the right “goods”',
+            );
+
+            is(
+                0 + $!,
+                5,
+                '...and failure leaves $! alone',
+            );
+
+            is( _getcwd(), $tdir, '...and it did NOT chdir()' );
+        }
+        catch { die $_ } finally { chdir $orig_dir };
+    }
+
+    return;
+}
+
 sub test_chdir : Tests(22) {
     my ($self) = @_;
 
@@ -1104,12 +1173,7 @@ sub test_chdir : Tests(22) {
         );
         my $err = $@;
 
-        #cf. https://github.com/rjbs/Test-Deep/issues/26
-        {
-            local ( $!, $^E );
-            all();
-            re(qr<.>);
-        }
+        _preload_Test_Deep();
 
         cmp_deeply(
             $err,
@@ -1188,6 +1252,15 @@ sub test_chdir : Tests(22) {
     finally {
         chdir($orig_dir);
     };
+
+    return;
+}
+
+#cf. https://github.com/rjbs/Test-Deep/issues/26
+sub _preload_Test_Deep {
+    local ( $!, $^E );
+    all();
+    re(qr<.>);
 
     return;
 }

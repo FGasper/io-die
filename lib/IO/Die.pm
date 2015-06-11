@@ -12,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.032
+Version 0.033
 
 =cut
 
-our $VERSION = '0.032';
+our $VERSION = '0.033';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -186,10 +186,8 @@ sub chdir {
     }
     else {
         $ret = chdir or do {
-            my $path = $ENV{'HOME'};
-            if ( !defined $path ) {
-                $path = $ENV{'LOGDIR'};
-            }
+            my $path = _get_what_chdir_took_as_homedir();
+
             if ( !defined $path ) {
                 $NS->__THROW('Chdir');
             }
@@ -199,6 +197,19 @@ sub chdir {
     }
 
     return $ret;
+}
+
+sub _get_what_chdir_took_as_homedir {
+    my $path = $ENV{'HOME'};
+    if ( !defined $path ) {
+        $path = $ENV{'LOGDIR'};
+
+        if ( !defined($path) && $^O eq 'VMS' ) {
+            $path = $ENV{'SYS$LOGIN'};
+        }
+    }
+
+    return $path;
 }
 
 #A bit more restrictive than Perl’s built-in print():
