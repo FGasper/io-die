@@ -18,7 +18,6 @@ my $builder = Module::Build->new(
         'Test::Class' => '0.41',
         'Test::Deep'  => '0.01',
         'Test::NoWarnings' => '0.01',
-        'Test::Trap'  => '0.3.2',
     },
     requires => {
         perl => '5.006',    #should work, but the test suite will require 5.8
