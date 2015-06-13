@@ -84,9 +84,12 @@ sub __is_a_fh {
 #NOTE: Bareword file handles DO NOT WORK. (Auto-vivification does, though.)
 #
 sub open {
-    my ( $NS, $handle_r, $mode, $expr, @list ) = ( shift, \shift, @_ );
+    my ( $NS, $mode, $expr, @list ) = ( shift, @_[ 1 .. $#_ ] );
 
-    die "Avoid bareword file handles." if !ref $$handle_r && defined $$handle_r && length $$handle_r;
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $handle_r, $mode, $expr, @list ) = ( shift, \shift, @_ );
+
+    die "Avoid bareword file handles." if !ref $_[0] && defined $_[0] && length $_[0];
     die "Avoid one-argument open()." if !$mode;
 
     local ( $!, $^E );
@@ -94,7 +97,7 @@ sub open {
         if ( $mode eq '|-' or $mode eq '-|' ) {
 
             #NOTE: Avoid // for compatibility with old Perl versions.
-            my $open = CORE::open( $$handle_r, $mode );
+            my $open = CORE::open( $_[0], $mode );
             if ( !defined $open ) {
                 $NS->__THROW('Fork');
             }
@@ -106,7 +109,7 @@ sub open {
         die "Avoid most forms of two-argument open(). (See $file and its tests for allowable forms.)";
     }
 
-    my $ok = CORE::open( $$handle_r, $mode, $expr, @list ) or do {
+    my $ok = CORE::open( $_[0], $mode, $expr, @list ) or do {
         if ( $mode eq '|-' || $mode eq '-|' ) {
             my $cmd = $expr;
 
@@ -132,7 +135,10 @@ sub open {
 }
 
 sub sysopen {
-    my ( $NS, $handle_r, @post_handle_args ) = ( shift, \shift, @_ );
+    my ( $NS, @post_handle_args ) = ( shift, @_[ 1 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $handle_r, @post_handle_args ) = ( shift, \shift, @_ );
 
     my ( $path, $mode, $perms ) = @post_handle_args;
 
@@ -140,10 +146,10 @@ sub sysopen {
 
     my $ret;
     if ( @post_handle_args < 3 ) {
-        $ret = CORE::sysopen( $$handle_r, $path, $mode );
+        $ret = CORE::sysopen( $_[0], $path, $mode );
     }
     else {
-        $ret = CORE::sysopen( $$handle_r, $path, $mode, $perms );
+        $ret = CORE::sysopen( $_[0], $path, $mode, $perms );
     }
 
     #XXX: Perl bug? $! is often set here even when $ret is truthy.
@@ -254,7 +260,10 @@ sub print {
 }
 
 sub syswrite {
-    my ( $NS, $fh, $buffer_sr, @length_offset ) = ( shift, shift, \shift, @_ );
+    my ( $NS, $fh, @length_offset ) = ( shift, shift, @_[ 1 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $fh, $buffer_sr, @length_offset ) = ( shift, shift, \shift, @_ );
 
     my ( $length, $offset ) = @length_offset;
 
@@ -262,17 +271,17 @@ sub syswrite {
 
     my $ret;
     if ( @length_offset > 1 ) {
-        $ret = CORE::syswrite( $fh, $$buffer_sr, $length, $offset );
+        $ret = CORE::syswrite( $fh, $_[0], $length, $offset );
     }
     elsif (@length_offset) {
-        $ret = CORE::syswrite( $fh, $$buffer_sr, $length );
+        $ret = CORE::syswrite( $fh, $_[0], $length );
     }
     else {
-        $ret = CORE::syswrite( $fh, $$buffer_sr );
+        $ret = CORE::syswrite( $fh, $_[0] );
     }
 
     if ( !defined $ret ) {
-        my $real_length = length $$buffer_sr;
+        my $real_length = length $_[0];
 
         if ($offset) {
             if ( $offset > 0 ) {
@@ -299,7 +308,10 @@ sub syswrite {
 #make it impossible not to duplicate code here.
 
 sub read {
-    my ( $NS, $fh, $buffer_sr, @length_offset ) = ( shift, shift, \shift, @_ );
+    my ( $NS, $fh, @length_offset ) = ( shift, shift, @_[ 1 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $fh, $buffer_sr, @length_offset ) = ( shift, shift, \shift, @_ );
 
     my ( $length, $offset ) = @length_offset;
 
@@ -311,10 +323,10 @@ sub read {
 
     my $ret;
     if ( @length_offset > 1 ) {
-        $ret = CORE::read( $fh, $$buffer_sr, $length, $offset );
+        $ret = CORE::read( $fh, $_[0], $length, $offset );
     }
     else {
-        $ret = CORE::read( $fh, $$buffer_sr, $length );
+        $ret = CORE::read( $fh, $_[0], $length );
     }
 
     if ( !defined $ret ) {
@@ -325,7 +337,10 @@ sub read {
 }
 
 sub sysread {
-    my ( $NS, $fh, $buffer_sr, @length_offset ) = ( shift, shift, \shift, @_ );
+    my ( $NS, $fh, @length_offset ) = ( shift, shift, @_[ 1 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $fh, $buffer_sr, @length_offset ) = ( shift, shift, \shift, @_ );
 
     my ( $length, $offset ) = @length_offset;
 
@@ -337,10 +352,10 @@ sub sysread {
 
     my $ret;
     if ( @length_offset > 1 ) {
-        $ret = CORE::sysread( $fh, $$buffer_sr, $length, $offset );
+        $ret = CORE::sysread( $fh, $_[0], $length, $offset );
     }
     else {
-        $ret = CORE::sysread( $fh, $$buffer_sr, $length );
+        $ret = CORE::sysread( $fh, $_[0], $length );
     }
 
     if ( !defined $ret ) {
@@ -379,7 +394,7 @@ sub sysseek {
     my ( $NS, $fh, $pos, $whence ) = @_;
 
     local ( $!, $^E );
-    my $ok =  CORE::sysseek( $fh, $pos, $whence ) or do {
+    my $ok = CORE::sysseek( $fh, $pos, $whence ) or do {
         $NS->__THROW( 'FileSeek', whence => $whence, position => $pos );
     };
 
@@ -390,7 +405,7 @@ sub truncate {
     my ( $NS, $fh_or_expr, $length ) = @_;
 
     local ( $!, $^E );
-    my $ok =  CORE::truncate( $fh_or_expr, $length ) or do {
+    my $ok = CORE::truncate( $fh_or_expr, $length ) or do {
         $NS->__THROW( 'FileTruncate', length => $length );
     };
 
@@ -400,10 +415,13 @@ sub truncate {
 #----------------------------------------------------------------------
 
 sub opendir {
-    my ( $NS, $dh_r, $dir ) = ( shift, \shift, shift );
+    my ( $NS, $dir ) = ( shift, @_[ 1 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $dh_r, $dir ) = ( shift, \shift, shift );
 
     local ( $!, $^E );
-    my $ok =  CORE::opendir( $$dh_r, $dir ) or do {
+    my $ok = CORE::opendir( $_[0], $dir ) or do {
         $NS->__THROW( 'DirectoryOpen', path => $dir );
     };
 
@@ -414,7 +432,7 @@ sub rewinddir {
     my ( $NS, $dh ) = @_;
 
     local ( $!, $^E );
-    my $ok =  CORE::rewinddir($dh) or do {
+    my $ok = CORE::rewinddir($dh) or do {
         $NS->__THROW('DirectoryRewind');
     };
 
@@ -425,7 +443,7 @@ sub closedir {
     my ( $NS, $dh ) = @_;
 
     local ( $!, $^E );
-    my $ok =  CORE::closedir($dh) or do {
+    my $ok = CORE::closedir($dh) or do {
         $NS->__THROW('DirectoryClose');
     };
 
@@ -491,7 +509,7 @@ sub flock {
     my ( $NS, $fh, $operation ) = @_;
 
     local ( $!, $^E );
-    my $ok =  CORE::flock( $fh, $operation ) or do {
+    my $ok = CORE::flock( $fh, $operation ) or do {
         $NS->__THROW( 'Flock', operation => $operation );
     };
 
@@ -700,10 +718,13 @@ sub exec {
 }
 
 sub pipe {
-    my ( $NS, $read_r, $write_r ) = ( shift, \shift, \shift );
+    my ($NS) = (shift);
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $read_r, $write_r ) = ( shift, \shift, \shift );
 
     local ( $!, $^E );
-    my $ok = CORE::pipe( $$read_r, $$write_r ) or do {
+    my $ok = CORE::pipe( $_[0], $_[1] ) or do {
         $NS->__THROW('Pipe');
     };
 
@@ -750,13 +771,13 @@ sub fcntl {
 }
 
 sub select {
-    my ( $NS, $rbits_r, $wbits_r, $ebits_r, $timeout ) = ( shift, \$_[0], \$_[1], \$_[2], $_[3] );
+    my ( $NS, $timeout ) = ( shift, $_[3] );
 
     #Perl::Critic says not to use one-arg select() anyway.
     die "Need four args!" if @_ < 4;
 
     local ( $!, $^E );
-    my ( $nfound, $timeleft ) = CORE::select( $$rbits_r, $$wbits_r, $$ebits_r, $timeout );
+    my ( $nfound, $timeleft ) = CORE::select( $_[0], $_[1], $_[2], $timeout );
 
     if ($^E) {
         $NS->__THROW('Select');
@@ -768,10 +789,13 @@ sub select {
 #----------------------------------------------------------------------
 
 sub socket {
-    my ( $NS, $socket_r, $domain, $type, $protocol ) = ( shift, \shift, shift, shift, shift );
+    my ( $NS, $domain, $type, $protocol ) = ( shift, @_[ 1 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $socket_r, $domain, $type, $protocol ) = ( shift, \shift, shift, shift, shift );
 
     local ( $!, $^E );
-    my $ok = CORE::socket( $$socket_r, $domain, $type, $protocol ) or do {
+    my $ok = CORE::socket( $_[0], $domain, $type, $protocol ) or do {
         $NS->__THROW( 'SocketOpen', domain => $domain, type => $type, protocol => $protocol );
     };
 
@@ -779,10 +803,13 @@ sub socket {
 }
 
 sub socketpair {
-    my ( $NS, $socket1_r, $socket2_r, $domain, $type, $protocol ) = ( \shift, shift, shift, shift );
+    my ( $NS, $domain, $type, $protocol ) = ( shift, @_[ 2 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $socket1_r, $socket2_r, $domain, $type, $protocol ) = ( \shift, \shift, shift, shift );
 
     local ( $!, $^E );
-    my $ok = CORE::socketpair( $$socket1_r, $$socket2_r, $domain, $type, $protocol ) or do {
+    my $ok = CORE::socketpair( $_[0], $_[1], $domain, $type, $protocol ) or do {
         $NS->__THROW( 'SocketPair', domain => $domain, type => $type, protocol => $protocol );
     };
 
@@ -858,10 +885,13 @@ sub listen {
 }
 
 sub recv {
-    my ( $NS, $socket, $scalar_r, $length, $flags ) = ( shift, \shift, @_ );
+    my ( $NS, $socket, $length, $flags ) = ( shift, shift, @_[ 1 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $socket, $scalar_r, $length, $flags ) = ( shift, shift, \shift, @_ );
 
     local ( $!, $^E );
-    my $res = CORE::recv( $socket, $$scalar_r, $length, $flags );
+    my $res = CORE::recv( $socket, $_[0], $length, $flags );
     if ( !defined $res ) {
         $NS->__THROW( 'SocketReceive', length => $length, flags => $flags );
     }
@@ -870,19 +900,22 @@ sub recv {
 }
 
 sub send {
-    my ( $NS, $socket, $msg_r, $flags, $to ) = ( shift, \shift, @_ );
+    my ( $NS, $socket, $flags, $to ) = ( shift, shift, @_[ 1 .. $#_ ] );
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $socket, $msg_r, $flags, $to ) = ( shift, shift, \shift, @_ );
 
     local ( $!, $^E );
     my $res;
     if ( defined $to ) {
-        $res = CORE::send( $socket, $$msg_r, $flags, $to );
+        $res = CORE::send( $socket, $_[0], $flags, $to );
     }
     else {
-        $res = CORE::send( $socket, $$msg_r, $flags );
+        $res = CORE::send( $socket, $_[0], $flags );
     }
 
     if ( !defined $res ) {
-        $NS->__THROW( 'SocketSend', length => length($$msg_r), flags => $flags );
+        $NS->__THROW( 'SocketSend', length => length( $_[0] ), flags => $flags );
     }
 
     return $res;

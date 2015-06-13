@@ -26,7 +26,6 @@ use Fcntl;
 use Test::More;
 use Test::NoWarnings;
 use Test::Deep;
-use Test::Trap;
 use Test::Exception;
 
 use Capture::Tiny ();
@@ -193,10 +192,10 @@ sub test_open_on_a_scalar_ref : Tests(3) {
 
     is( <$fh>, 123, '...and the file handle reads fine' );
 
-    trap {
-        IO::Die->open( $fh, '>', \123 );
-    };
-    $trap->did_die('error from creating write-to file handle on a scalar ref constant');
+    dies_ok(
+        sub { IO::Die->open( $fh, '>', \123 ) },
+        'error from creating write-to file handle on a scalar ref constant',
+    );
 
     return;
 }
@@ -208,24 +207,24 @@ sub test_open_on_a_file : Tests(6) {
 
     local $! = 7;
 
-    trap {
-        IO::Die->open( my $wfh, '>', "$dir/somefile" );
-    };
-    $trap->did_return('open(>) on a new file');
+    lives_ok(
+        sub { IO::Die->open( my $wfh, '>', "$dir/somefile" ) },
+        'open(>) on a new file',
+    );
     ok( ( -f "$dir/somefile" ), '...and it really did open()' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    trap {
-        IO::Die->open( my $wfh, ">$dir/somefile" );
-    };
-    $trap->did_die('open(>) fails on 2-arg');
+    dies_ok(
+        sub { IO::Die->open( my $wfh, ">$dir/somefile" ) },
+        'open(>) fails on 2-arg',
+    );
 
-    trap {
-        IO::Die->open( my $wfh, '<', "$dir/otherfile" );
-    };
-    $trap->did_die('open(<) on a nonexistent file');
-    like( $trap->die(), qr<FileOpen>, '...and the error' );
+    dies_ok(
+        sub { IO::Die->open( my $wfh, '<', "$dir/otherfile" ) },
+        'open(<) on a nonexistent file',
+    );
+    like( $@, qr<FileOpen>, '...and the error' );
 
     return;
 }
@@ -235,32 +234,32 @@ sub test_open_from_a_command : Tests(9) {
 
     my ( $rfh, $pid );
 
-    trap {
-        $pid = IO::Die->open( $rfh, '-|', 'echo hi' );
-    };
-    $trap->did_return('open() from a space-delimited command');
+    lives_ok(
+        sub { $pid = IO::Die->open( $rfh, '-|', 'echo hi' ) },
+        'open() from a space-delimited command',
+    );
     is( <$rfh>, "hi$/", '...and it really does open() from the command' );
     like( $pid, qr<\A[0-9]+\z>, '...and it returns the PID' );
 
-    trap {
-        IO::Die->open( $rfh, '-|', 'echo', 'hi' );
-    };
-    $trap->did_return('open() from a command with list args');
+    lives_ok(
+        sub { IO::Die->open( $rfh, '-|', 'echo', 'hi' ) },
+        'open() from a command with list args',
+    );
     is( <$rfh>, "hi$/", '...and it really does open() from the command' );
 
-    trap {
-        IO::Die->open( $rfh, '-|', 'echo hi', undef );
-    };
-    $trap->did_die('open() from a nonexistent command with a space in it');
-    like( $trap->die(), qr<Exec>, '..and the exception' );
+    dies_ok(
+        sub { IO::Die->open( $rfh, '-|', 'echo hi', undef ) },
+        'open() from a nonexistent command with a space in it',
+    );
+    like( $@, qr<Exec>, '..and the exception' );
 
     my $dir = $self->tempdir();
 
-    trap {
-        IO::Die->open( $rfh, '-|', "$dir/hahaha" );
-    };
-    $trap->did_die('open() from a nonexistent command');
-    like( $trap->die(), qr<Exec>, '..and the exception' );
+    dies_ok(
+        sub { IO::Die->open( $rfh, '-|', "$dir/hahaha" ) },
+        'open() from a nonexistent command',
+    );
+    like( $@, qr<Exec>, '..and the exception' );
 
     return;
 }
@@ -272,7 +271,6 @@ sub test_open_to_a_command : Tests(9) {
 
     my $stdout;
 
-    #Test::Trap doesn't play nicely with Capture::Tiny.
     local $@;
 
     eval {
@@ -300,19 +298,19 @@ sub test_open_to_a_command : Tests(9) {
     ok( !$@, 'open() to a command with list args' );
     is( $stdout, '123ohyeah', '...and it obeys parameters and still open()s to the command' );
 
-    trap {
-        IO::Die->open( $rfh, '|-', 'echo hi', undef );
-    };
-    $trap->did_die('open() to a nonexistent command with a space in it');
-    like( $trap->die(), qr<Exec>, '..and the exception' );
+    dies_ok(
+        sub { IO::Die->open( $rfh, '|-', 'echo hi', undef ) },
+        'open() to a nonexistent command with a space in it',
+    );
+    like( $@, qr<Exec>, '..and the exception' );
 
     my $dir = $self->tempdir();
 
-    trap {
-        IO::Die->open( $rfh, '|-', "$dir/hahaha" );
-    };
-    $trap->did_die('open() to a nonexistent command');
-    like( $trap->die(), qr<Exec>, '..and the exception' );
+    dies_ok(
+        sub { IO::Die->open( $rfh, '|-', "$dir/hahaha" ) },
+        'open() to a nonexistent command',
+    );
+    like( $@, qr<Exec>, '..and the exception' );
 
     return;
 }
@@ -323,21 +321,21 @@ sub test_sysopen : Tests(7) {
     my $dir = $self->tempdir();
 
     my ( $opened, $fh );
-    trap {
-        $opened = IO::Die->sysopen( $fh, "$dir/notthere", Fcntl::O_RDONLY );
-    };
-    $trap->did_die('sysopen(O_RDONLY) on a nonexistent file');
-    like( $trap->die(), qr<FileOpen>, '..and the exception' ) or diag explain $trap->die();
+    dies_ok(
+        sub { $opened = IO::Die->sysopen( $fh, "$dir/notthere", Fcntl::O_RDONLY ) },
+        'sysopen(O_RDONLY) on a nonexistent file',
+    );
+    like( $@, qr<FileOpen>, '..and the exception' ) or diag explain $@;
 
     local $! = 7;
 
     $fh = IO::Handle->new();
 
     local $@;
-    trap {
-        $opened = IO::Die->sysopen( $fh, "$dir/i_am_here", Fcntl::O_CREAT | Fcntl::O_WRONLY, 0600 );
-    };
-    $trap->did_return('sysopen(O_CREAT | O_WRONLY) on a nonexistent file');
+    lives_ok(
+        sub { $opened = IO::Die->sysopen( $fh, "$dir/i_am_here", Fcntl::O_CREAT | Fcntl::O_WRONLY, 0600 ) },
+        'sysopen(O_CREAT | O_WRONLY) on a nonexistent file',
+    );
     ok( $opened, '..and the return is truthy' );
     isa_ok( $fh, 'GLOB', '...and auto-vivification works' );
 
@@ -365,21 +363,23 @@ sub test_sysread : Tests(10) {
     my $dir = $self->tempdir();
     open my $fh, '+>', "$dir/somefile";
 
-    trap {
-        my $buffer = q<>;
-        for ( 1 .. 100 ) {
-            my $random = rand;
+    lives_ok(
+        sub {
+            my $buffer = q<>;
+            for ( 1 .. 100 ) {
+                my $random = rand;
 
-            sysseek( $fh, 0, 0 );
-            truncate $fh, 0;
-            syswrite( $fh, $random );
-            sysseek( $fh, 0, 0 );
-            IO::Die->sysread( $fh, $buffer, length $random );
+                sysseek( $fh, 0, 0 );
+                truncate $fh, 0;
+                syswrite( $fh, $random );
+                sysseek( $fh, 0, 0 );
+                IO::Die->sysread( $fh, $buffer, length $random );
 
-            die if $buffer ne $random;
-        }
-    };
-    $trap->did_return('sysread() is really unbuffered') or diag explain $trap;
+                die if $buffer ne $random;
+            }
+        },
+        'sysread() is really unbuffered',
+    );
 
     return;
 }
@@ -401,10 +401,10 @@ sub _test_read_func {
 
     local $! = 7;
 
-    trap {
-        $func_cr->( 'IO::Die', $fh, $buffer, 2 );
-    };
-    $trap->did_return('read succeeded');
+    lives_ok(
+        sub { $func_cr->( 'IO::Die', $fh, $buffer, 2 ) },
+        'read succeeded',
+    );
     is( $buffer, 'ab', '...and actually worked' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
@@ -420,11 +420,12 @@ sub _test_read_func {
 
     close $fh;
 
-    trap {
-        $func_cr->( 'IO::Die', $fh, $buffer, 7 );
-    };
-    like( $trap->die(), qr<Read>, 'error read on a closed filehandle' );
-    like( $trap->die(), qr<7>,    '...and the error has the intended number of bytes' );
+    throws_ok(
+        sub { $func_cr->( 'IO::Die', $fh, $buffer, 7 ) },
+        qr<Read>,
+        'error read on a closed filehandle',
+    );
+    like( $@, qr<7>, '...and the error has the intended number of bytes' );
 
     return;
 }
@@ -437,20 +438,20 @@ sub test_print_with_filehandle : Tests(10) {
     local $! = 7;
 
     my $printed;
-    trap {
-        $printed = IO::Die->print( $fh, 'ha', 'ha' );
-    };
-    $trap->did_return('print() to a file with a given string');
+    lives_ok(
+        sub { $printed = IO::Die->print( $fh, 'ha', 'ha' ) },
+        'print() to a file with a given string',
+    );
     ok( $printed, '...and it returns a true value' );
     is( do { local $!; scalar `cat $file` }, 'haha', '...and the print actually happened' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     for ('hoho') {
-        trap {
-            $printed = IO::Die->print($fh);
-        };
-        $trap->did_return('print() to a file from $_');
+        lives_ok(
+            sub { $printed = IO::Die->print($fh) },
+            'print() to a file from $_',
+        );
         ok( $printed, '...and it returns a true value' );
         is( ( scalar `cat $file` ), 'hahahoho', '...and the print actually happened' );
     }
@@ -458,12 +459,12 @@ sub test_print_with_filehandle : Tests(10) {
     close $fh;
 
     open my $rfh, '<', $file;
-    trap {
-        IO::Die->print($rfh) for 'haha!';
-    };
-    $trap->did_die('print() dies when writing to a non-write filehandle');
-    like( $trap->die(), qr<Write>, '...and the exception' );
-    like( $trap->die(), qr<5>,     '...and the exception contains the total number of bytes' );
+    dies_ok(
+        sub { IO::Die->print($rfh) for 'haha!' },
+        'print() dies when writing to a non-write filehandle',
+    );
+    like( $@, qr<Write>, '...and the exception' );
+    like( $@, qr<5>,     '...and the exception contains the total number of bytes' );
 
     return;
 }
@@ -471,6 +472,7 @@ sub test_print_with_filehandle : Tests(10) {
 sub test_print_without_filehandle : Tests(9) {
     my ($self) = @_;
 
+    my $err;
     {
         my ( $file, $fh ) = $self->tempfile();
 
@@ -478,36 +480,38 @@ sub test_print_without_filehandle : Tests(9) {
 
         try {
             my $printed;
-            trap {
-                $printed = IO::Die->print('haha');
-            };
-            $trap->did_return('print() to a file with a given string');
+            lives_ok(
+                sub { $printed = IO::Die->print('haha') },
+                'print() to a file with a given string',
+            );
             ok( $printed, '...and it returns a true value' );
             is( ( scalar `cat $file` ), 'haha', '...and the print actually happened' );
 
             for ('hoho') {
-                trap {
-                    $printed = IO::Die->print();
-                };
-                $trap->did_return('print() to a file from $_');
+                lives_ok(
+                    sub { $printed = IO::Die->print() },
+                    'print() to a file from $_',
+                );
                 ok( $printed, '...and it returns a true value' );
                 is( ( scalar `cat $file` ), 'hahahoho', '...and the print actually happened' );
             }
 
             close $fh;
 
-            trap {
-                $printed = IO::Die->print( 'I', 'die' );
-            };
+            dies_ok(
+                sub { $printed = IO::Die->print( 'I', 'die' ) },
+                'print() dies when the filehandle is closed',
+            );
+            $err = $@;
         }
+        catch { die $_ }
         finally {
             select $orig_fh;
         };
     }
 
-    $trap->did_die('print() dies when the filehandle is closed');
-    like( $trap->die(), qr<Write>, '...and the exception' );
-    like( $trap->die(), qr<4>,     '...and the exception contains the total number of bytes' );
+    like( $err, qr<Write>, '...and the exception' );
+    like( $err, qr<4>,     '...and the exception contains the total number of bytes' );
 
     return;
 }
@@ -520,10 +524,10 @@ sub test_syswrite : Tests(14) {
     local $! = 7;
 
     my $printed;
-    trap {
-        $printed = IO::Die->syswrite( $fh, 'haha' );
-    };
-    $trap->did_return('write to a file with a given string');
+    lives_ok(
+        sub { $printed = IO::Die->syswrite( $fh, 'haha' ) },
+        'write to a file with a given string',
+    );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
@@ -542,36 +546,42 @@ sub test_syswrite : Tests(14) {
     close $fh;
 
     open my $rfh, '<', $file;
-    trap {
-        IO::Die->syswrite( $rfh, 'abcde' );
-    };
-    like( $trap->die(), qr<Write>, 'exception when writing to a non-write filehandle' );
-    like( $trap->die(), qr<5>,     '...and the exception contains the number of bytes meant to be written' );
+    throws_ok(
+        sub { IO::Die->syswrite( $rfh, 'abcde' ) },
+        qr<Write>,
+        'exception when writing to a non-write filehandle',
+    );
+    like( $@, qr<5>, '...and the exception contains the number of bytes meant to be written' );
 
-    trap {
-        IO::Die->syswrite( $rfh, 'abcde', 2 );
-    };
-    like( $trap->die(), qr<2>, 'The exception contains the correct number of bytes meant to be written if there was a LENGTH' );
+    throws_ok(
+        sub { IO::Die->syswrite( $rfh, 'abcde', 2 ) },
+        qr<2>,
+        'The exception contains the correct number of bytes meant to be written if there was a LENGTH',
+    );
 
-    trap {
-        IO::Die->syswrite( $rfh, 'abcde', 200 );
-    };
-    like( $trap->die(), qr<5>, 'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH' );
+    throws_ok(
+        sub { IO::Die->syswrite( $rfh, 'abcde', 200 ) },
+        qr<5>,
+        'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH',
+    );
 
-    trap {
-        IO::Die->syswrite( $rfh, 'abcde', 2, 1 );
-    };
-    like( $trap->die(), qr<2>, 'The exception contains the correct number of bytes meant to be written if there was a LENGTH and positive OFFSET' );
+    throws_ok(
+        sub { IO::Die->syswrite( $rfh, 'abcde', 2, 1 ) },
+        qr<2>,
+        'The exception contains the correct number of bytes meant to be written if there was a LENGTH and positive OFFSET',
+    );
 
-    trap {
-        IO::Die->syswrite( $rfh, 'abcde', 200, 1 );
-    };
-    like( $trap->die(), qr<4>, 'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH and positive OFFSET' );
+    throws_ok(
+        sub { IO::Die->syswrite( $rfh, 'abcde', 200, 1 ) },
+        qr<4>,
+        'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH and positive OFFSET',
+    );
 
-    trap {
-        IO::Die->syswrite( $rfh, 'abcde', 200, -3 );
-    };
-    like( $trap->die(), qr<3>, 'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH and negative OFFSET' );
+    throws_ok(
+        sub { IO::Die->syswrite( $rfh, 'abcde', 200, -3 ) },
+        qr<3>,
+        'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH and negative OFFSET',
+    );
 
     return;
 }
@@ -584,20 +594,20 @@ sub test_close_with_filehandle : Tests(6) {
     local $! = 7;
 
     my $closed;
-    trap {
-        $closed = IO::Die->close($fh);
-    };
-    $trap->did_return('close()');
+    lives_ok(
+        sub { $closed = IO::Die->close($fh) },
+        'close()',
+    );
     ok( $closed,            '...and the return value is truthy' );
     ok( !CORE::fileno($fh), '...and the filehandle actually closed' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    trap {
-        IO::Die->close($fh);
-    };
-    $trap->did_die('close() dies when the filehandle is already closed');
-    like( $trap->die(), qr<Close>, '...and the exception' );
+    dies_ok(
+        sub { IO::Die->close($fh) },
+        'close() dies when the filehandle is already closed',
+    );
+    like( $@, qr<Close>, '...and the exception' );
 
     return;
 }
@@ -616,16 +626,16 @@ sub test_close_without_filehandle : Tests(5) {
             select $fh;    ## no critic qw(ProhibitOneArgSelect)
             close $fh;
 
-            trap {
-                $closed = IO::Die->close();
-            };
+            dies_ok(
+                sub { $closed = IO::Die->close() },
+                'close() dies if the select()ed filehandle is already closed',
+            );
+            like( $@, qr<Close>, '...and the exception' );
         }
         finally {
             select $orig_fh;
         };
     }
-    $trap->did_die('close() dies if the select()ed filehandle is already closed');
-    like( $trap->die(), qr<Close>, '...and the exception' );
 
     {
         ( undef, $fh ) = $self->tempfile();
@@ -635,16 +645,16 @@ sub test_close_without_filehandle : Tests(5) {
         try {
             select $fh;    ## no critic qw(ProhibitOneArgSelect)
 
-            trap {
-                $closed = IO::Die->close();
-            };
+            lives_ok(
+                sub { $closed = IO::Die->close() },
+                'close()',
+            );
         }
         finally {
             select $orig_fh;
         };
     }
 
-    $trap->did_return('close()');
     ok( $closed,            '...and the return value is truthy' );
     ok( !CORE::fileno($fh), '...and the filehandle actually closed' );
 
@@ -733,20 +743,22 @@ sub test_truncate : Tests(10) {
 
     IO::Die->open( $fh, '<', $file );
 
-    trap {
-        IO::Die->truncate( $fh, 10 );
-    };
-    like( $trap->die(), qr<FileTruncate>, 'error from truncating on read-only filehandle' );
+    throws_ok(
+        sub { IO::Die->truncate( $fh, 10 ) },
+        qr<FileTruncate>,
+        'error from truncating on read-only filehandle',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::EINVAL() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $@;
 
     $trunc = IO::Die->truncate( $file, 1000 );
     ok( $trunc, 'truncate() returns truthy when truncating a filename' );
@@ -755,18 +767,20 @@ sub test_truncate : Tests(10) {
 
     IO::Die->unlink($file);
 
-    trap {
-        IO::Die->truncate( $file, 10 );
-    };
-    like( $trap->die(), qr<FileTruncate>, 'error from truncating nonexistent file' );
+    throws_ok(
+        sub { IO::Die->truncate( $file, 10 ) },
+        qr<FileTruncate>,
+        'error from truncating nonexistent file',
+    );
+    $err = $@;
 
     $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -784,20 +798,22 @@ sub test_opendir : Tests(6) {
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    trap {
-        IO::Die->opendir( my $dfh, "$dir/not_there" );
-    };
-    like( $trap->die(), qr<DirectoryOpen>, 'error from opening nonexistent directory' );
+    throws_ok(
+        sub { IO::Die->opendir( my $dfh, "$dir/not_there" ) },
+        qr<DirectoryOpen>,
+        'error from opening nonexistent directory',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -843,20 +859,22 @@ sub test_rewinddir : Tests(5) {
 
     $! = 7;
 
-    trap {
-        IO::Die->rewinddir($dfh);
-    };
-    like( $trap->die(), qr<DirectoryRewind>, 'error from closing already-closed directory' );
+    throws_ok(
+        sub { IO::Die->rewinddir($dfh) },
+        qr<DirectoryRewind>,
+        'error from closing already-closed directory',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::EBADF() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -875,20 +893,25 @@ sub test_closedir : Tests(5) {
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    trap {
-        IO::Die->closedir($dfh);
-    };
-    like( $trap->die(), qr<DirectoryClose>, 'error from closing already-closed directory' );
+    {
+        local $SIG{'__WARN__'} = sub { };
+        throws_ok(
+            sub { IO::Die->closedir($dfh) },
+            qr<DirectoryClose>,
+            'error from closing already-closed directory',
+        );
+    }
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::EBADF() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -912,26 +935,28 @@ sub test_unlink : Tests(10) {
     is( $ok, 1, 'returns 1 if one path unlink()ed (via $_)' );
     ok( !do { local $!; -e "$dir/redshirt0" }, '...and the unlink() worked (via $_)' );
 
-    trap {
-        IO::Die->unlink( "$dir/redshirt1", "$dir/redshirt2" );
-    };
-    $trap->did_die('die()d with >1 path passed');
+    dies_ok(
+        sub { IO::Die->unlink( "$dir/redshirt1", "$dir/redshirt2" ) },
+        'die()d with >1 path passed',
+    );
     ok( do { local $!; -e "$dir/redshirt1" }, '...and the unlink() did NOT happen' );
 
-    trap {
-        IO::Die->unlink("$dir/redshirt0");
-    };
-    like( $trap->die(), qr<Unlink>, 'failure when unlink()ing a nonexistent file' );
+    throws_ok(
+        sub { IO::Die->unlink("$dir/redshirt0") },
+        qr<Unlink>,
+        'failure when unlink()ing a nonexistent file',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -967,22 +992,25 @@ sub test_mkdir : Tests(10) {
     is( $ok, 1, 'returns 1 if one path mkdir()ed with perms' );
     ok( do { local $!; -e "$dir/with_perms" }, '...and the mkdir() worked' );
 
-    trap {
-        IO::Die->mkdir("$dir/not_there/not_a_chance");
-    };
-    like( $trap->die(), qr<DirectoryCreate>, 'failure when mkdir()ing a directory in a nonexistent directory' );
+    throws_ok(
+        sub { IO::Die->mkdir("$dir/not_there/not_a_chance") },
+        qr<DirectoryCreate>,
+        'failure when mkdir()ing a directory in a nonexistent directory',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $@,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+      )
+      or diag explain $@,
 
-    return;
+      return;
 }
 
 sub test_rmdir : Tests(10) {
@@ -1004,26 +1032,28 @@ sub test_rmdir : Tests(10) {
     is( $ok, 1, 'returns 1 if one path rmdir()ed (via $_)' );
     ok( !do { local $!; -e "$dir/redshirt0" }, '...and the rmdir() worked (via $_)' );
 
-    trap {
-        IO::Die->rmdir( "$dir/redshirt1", "$dir/redshirt2" );
-    };
-    $trap->did_die('die()d with >1 path passed');
+    dies_ok(
+        sub { IO::Die->rmdir( "$dir/redshirt1", "$dir/redshirt2" ) },
+        'die()d with >1 path passed',
+    );
     ok( do { local $!; -e "$dir/redshirt1" }, '...and the rmdir() did NOT happen' );
 
-    trap {
-        IO::Die->rmdir("$dir/redshirt0");
-    };
-    like( $trap->die(), qr<DirectoryDelete>, 'failure when rmdir()ing a nonexistent directory' );
+    throws_ok(
+        sub { IO::Die->rmdir("$dir/redshirt0") },
+        qr<DirectoryDelete>,
+        'failure when rmdir()ing a nonexistent directory',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -1286,10 +1316,10 @@ sub test_chmod : Tests(12) {
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    trap {
-        IO::Die->chmod( 0222, $dir, $dir2 );
-    };
-    $trap->did_die('die()d with >1 path passed');
+    dies_ok(
+        sub { IO::Die->chmod( 0222, $dir, $dir2 ) },
+        'die()d with >1 path passed',
+    );
     is( 0777 & ( IO::Die->stat($dir) )[2], 0111, '...and the chmod() did NOT happen' );
 
     $ok = IO::Die->chmod( 0321, $fh );
@@ -1298,10 +1328,12 @@ sub test_chmod : Tests(12) {
 
     IO::Die->close($fh);
 
-    trap {
-        IO::Die->chmod( 0456, $fh );
-    };
-    like( $trap->die(), qr<Chmod>, 'failure when chmod()ing a closed filehandle' );
+    throws_ok(
+        sub { IO::Die->chmod( 0456, $fh ) },
+        qr<Chmod>,
+        'failure when chmod()ing a closed filehandle',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
@@ -1311,24 +1343,26 @@ sub test_chmod : Tests(12) {
         my $str = $self->_errno_to_str( Errno::ENOTTY() );
 
         like(
-            $trap->die(),
+            $err,
             qr<$str>,
             "exception’s error()",
-        ) or diag explain $trap->die();
+        ) or diag explain $err;
     }
 
-    trap {
-        IO::Die->chmod( 0456, "$dir/not_there" );
-    };
-    like( $trap->die(), qr<Chmod>, 'failure when chmod()ing a nonexistent file' );
+    throws_ok(
+        sub { IO::Die->chmod( 0456, "$dir/not_there" ) },
+        qr<Chmod>,
+        'failure when chmod()ing a nonexistent file',
+    );
+    $err = $@;
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -1356,10 +1390,10 @@ sub test_chown : Tests(12) {
 
         is( 0 + $!, 7, '...and it left $! alone' );
 
-        trap {
-            IO::Die->chown( -1, $nobody_gid, $dir, $dir2 );
-        };
-        $trap->did_die('die()d with >1 path passed');
+        dies_ok(
+            sub { IO::Die->chown( -1, $nobody_gid, $dir, $dir2 ) },
+            'die()d with >1 path passed',
+        );
         is( ( IO::Die->stat($dir) )[5], 0 + $), '...and the chown() did NOT happen' );
 
         my ( $file, $fh ) = $self->tempfile();
@@ -1370,10 +1404,12 @@ sub test_chown : Tests(12) {
 
         IO::Die->close($fh);
 
-        trap {
-            IO::Die->chown( $>, 0 + $), $fh );
-        };
-        like( $trap->die(), qr<Chown>, 'failure when chown()ing a closed filehandle' );
+        throws_ok(
+            sub { IO::Die->chown( $>, 0 + $), $fh ) },
+            qr<Chown>,
+            'failure when chown()ing a closed filehandle',
+        );
+        my $err = $@;
 
         is( 0 + $!, 7, '...and it left $! alone' );
 
@@ -1383,24 +1419,26 @@ sub test_chown : Tests(12) {
             my $str = $self->_errno_to_str( Errno::ENOTTY() );
 
             like(
-                $trap->die(),
+                $err,
                 qr<$str>,
                 "exception’s error()",
-            ) or diag explain $trap->die();
+            ) or diag explain $err;
         }
 
-        trap {
-            IO::Die->chown( $>, 0 + $), "$dir/not_there" );
-        };
-        like( $trap->die(), qr<Chown>, 'failure when chown()ing a nonexistent file' );
+        throws_ok(
+            sub { IO::Die->chown( $>, 0 + $), "$dir/not_there" ) },
+            qr<Chown>,
+            'failure when chown()ing a nonexistent file',
+        );
+        $err = $@;
 
         my $str = $self->_errno_to_str( Errno::ENOENT() );
 
         like(
-            $trap->die(),
+            $err,
             qr<$str>,
             "exception’s error()",
-        ) or diag explain $trap->die();
+        ) or diag explain $err;
     }
 
     return;
@@ -1427,20 +1465,22 @@ sub test_stat : Tests(6) {
         'stat() in list context (and using “\*_”) returns the (cached) stat data',
     );
 
-    trap {
-        IO::Die->stat($file);
-    };
-    like( $trap->die(), qr<Stat>, 'failure when stat()ing a nonexistent path' );
+    throws_ok(
+        sub { IO::Die->stat($file) },
+        qr<Stat>,
+        'failure when stat()ing a nonexistent path',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -1485,20 +1525,22 @@ sub test_lstat : Tests(7) {
         );
     }
 
-    trap {
-        IO::Die->lstat("$dir/symlink");
-    };
-    like( $trap->die(), qr<Stat>, 'failure when lstat()ing a nonexistent symlink' );
+    throws_ok(
+        sub { IO::Die->lstat("$dir/symlink") },
+        qr<Stat>,
+        'failure when lstat()ing a nonexistent symlink',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -1525,20 +1567,22 @@ sub test_link : Tests(6) {
         is_deeply( \@the_link, \@orig_file, 'new hardlink is the same filesystem node as the old filename' );
     }
 
-    trap {
-        IO::Die->link( "$dir/notthere", "$dir/not_a_chance" );
-    };
-    like( $trap->die(), qr<Link>, 'failure when link()ing to a nonexistent file' );
+    throws_ok(
+        sub { IO::Die->link( "$dir/notthere", "$dir/not_a_chance" ) },
+        qr<Link>,
+        'failure when link()ing to a nonexistent file',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -1568,20 +1612,22 @@ sub test_symlink : Tests(7) {
     $scalar = IO::Die->symlink( "notthere", "$dir/not_a_chance" );
     ok( $scalar, 'symlink() even lets you create a dangling symlink' );
 
-    trap {
-        IO::Die->symlink( "notthere", "$dir/not_a_dir/not_a_chance" );
-    };
-    like( $trap->die(), qr<SymlinkCreate>, 'failure when creating a symlink() in a nonexistent directory' );
+    throws_ok(
+        sub { IO::Die->symlink( "notthere", "$dir/not_a_dir/not_a_chance" ) },
+        qr<SymlinkCreate>,
+        'failure when creating a symlink() in a nonexistent directory',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -1608,44 +1654,51 @@ sub test_readlink : Tests(10) {
         is( $scalar, 'haha', 'readlink() respects $_ if no parameter is passed' );
 
         no warnings 'uninitialized';
-        trap { IO::Die->readlink(undef) };
-        $trap->did_die('...but if undef is passed, then we do NOT read $_');
+        dies_ok(
+            sub { IO::Die->readlink(undef) },
+            '...but if undef is passed, then we do NOT read $_',
+        );
+        my $err = $@;
         my $str = $self->_errno_to_str( Errno::ENOENT() );
 
         like(
-            $trap->die(),
+            $err,
             qr<$str>,
             "exception’s error()",
-        ) or diag explain $trap->die();
+        ) or diag explain $err;
 
         is( 0 + $!, 7, '...and it left $! alone' );
     }
 
-    trap {
-        IO::Die->readlink("$dir/myfile");
-    };
-    like( $trap->die(), qr<SymlinkRead>, 'failure when reading a symlink that’s actually a file' );
+    throws_ok(
+        sub { IO::Die->readlink("$dir/myfile") },
+        qr<SymlinkRead>,
+        'failure when reading a symlink that’s actually a file',
+    );
+    my $err = $@;
 
     my $str = $self->_errno_to_str( Errno::EINVAL() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
-    trap {
-        IO::Die->readlink("$dir/not_there");
-    };
-    like( $trap->die(), qr<SymlinkRead>, 'failure when reading a nonexistent symlink' );
+    throws_ok(
+        sub { IO::Die->readlink("$dir/not_there") },
+        qr<SymlinkRead>,
+        'failure when reading a nonexistent symlink',
+    );
+    $err = $@;
 
     $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -1668,20 +1721,22 @@ sub test_rename : Tests(6) {
         ok( ( -e "$dir/file2" ), "rename() actually renamed the file" );
     }
 
-    trap {
-        IO::Die->rename( "$dir/not_there", "$dir/not_at_all" );
-    };
-    like( $trap->die(), qr<Rename>, 'failure when rename()ing a nonexistent file' );
+    throws_ok(
+        sub { IO::Die->rename( "$dir/not_there", "$dir/not_at_all" ) },
+        qr<Rename>,
+        'failure when rename()ing a nonexistent file',
+    );
+    my $err = $@;
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     my $str = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
-        $trap->die(),
+        $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return;
 }
@@ -1691,12 +1746,19 @@ sub test_exec : Tests(3) {
 
     my $scratch = $self->tempdir();
 
-    trap {
-        IO::Die->exec("$scratch/not_there");
-    };
-    like( $trap->die(), qr<Exec>, 'error type' );
+    {
+        local $SIG{'__WARN__'} = sub { };
+
+        throws_ok(
+            sub { IO::Die->exec("$scratch/not_there") },
+            qr<Exec>,
+            'error type',
+        );
+    }
+
+    my $err = $@;
     my $str = $self->_errno_to_str( Errno::ENOENT() );
-    like( $trap->die(), qr<$str>, 'error text' );
+    like( $err, qr<$str>, 'error text' );
 
   SKIP: {
         skip 'This test requires a *nix OS!', 1 if !`which echo`;
@@ -1915,10 +1977,15 @@ sub test_fcntl : Tests(5) {
 
     close $fh;
 
-    trap {
-        IO::Die->fcntl( $fh, &Fcntl::F_GETFL, 0 );
-    };
-    like( $trap->die(), qr<Fcntl>, 'error from fcntl() on closed filehandle' );
+    {
+        local $SIG{'__WARN__'} = sub { };
+
+        throws_ok(
+            sub { IO::Die->fcntl( $fh, &Fcntl::F_GETFL, 0 ) },
+            qr<Fcntl>,
+            'error from fcntl() on closed filehandle',
+        );
+    }
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
@@ -1946,10 +2013,10 @@ sub test_systell : Tests(3) {
 
     close $tfh;
 
-    trap {
-        IO::Die->systell($tfh);
-    };
-    $trap->did_die('systell() on a closed filehandle die()s');
+    dies_ok(
+        sub { IO::Die->systell($tfh) },
+        'systell() on a closed filehandle die()s',
+    );
 
     return;
 }
@@ -2013,7 +2080,7 @@ sub test_select : Tests(12) {
         $err,
         qr<$str>,
         "exception’s error()",
-    ) or diag explain $trap->die();
+    ) or diag explain $err;
 
     return 1;
 }
@@ -2083,13 +2150,13 @@ sub test_socket : Tests(3) {
 
     is( IO::Die->socket( $socket, &Socket::PF_UNIX, &Socket::SOCK_STREAM, 0 ), 1, "socket creation ok" );
 
+    local $@;
+
     for my $domain (&Socket::AF_INET) {
-        trap {
-            IO::Die->socket( my $socket, $domain, &Socket::SOCK_STREAM, -1 );
-        };
+        eval { IO::Die->socket( my $socket, $domain, &Socket::SOCK_STREAM, -1 ); };
 
         cmp_deeply(
-            $trap->die(),
+            $@,
             all(
                 re($domain),
                 re('SocketOpen'),
@@ -2099,12 +2166,10 @@ sub test_socket : Tests(3) {
     }
 
     for my $type (&Socket::SOCK_STREAM) {
-        trap {
-            IO::Die->socket( my $socket, &Socket::AF_INET, $type, -1 );
-        };
+        eval { IO::Die->socket( my $socket, &Socket::AF_INET, $type, -1 ); };
 
         cmp_deeply(
-            $trap->die(),
+            $@,
             all(
                 re($type),
                 re('SocketOpen'),
@@ -2119,18 +2184,20 @@ sub test_socket : Tests(3) {
 sub test_CREATE_ERROR : Test(1) {
     my $self = shift;
 
-    trap {
-        IO::Die::Subclass->read( \*STDOUT, my $fail, 123 );
-    };
+    local $SIG{'__WARN__'} = sub { };
+
+    local $@;
+    eval { IO::Die::Subclass->read( \*STDOUT, my $fail, 123 ); };
+    my $err = $@;
 
     cmp_deeply(
-        $trap->die(),
+        $err,
         {
             type  => 'Read',
             attrs => isa('HASH'),
         },
         '_CREATE_ERROR can override the default exception',
-    ) or diag explain $trap;
+    ) or diag explain $err;
 
     return;
 }
@@ -2138,11 +2205,11 @@ sub test_CREATE_ERROR : Test(1) {
 sub test_kill_reject_multiple : Tests(1) {
     my $pid1 = fork || do { sleep 999 };
     my $pid2 = fork || do { sleep 999 };
-    trap {
-        IO::Die->kill( 'TERM', $pid1, $pid2 );
-    };
 
-    $trap->did_die('kill() rejected multiple PIDs');
+    dies_ok(
+        sub { IO::Die->kill( 'TERM', $pid1, $pid2 ) },
+        'kill() rejected multiple PIDs',
+    );
 
     kill 'TERM', $pid1, $pid2;
 
@@ -2206,8 +2273,8 @@ sub test_kill : Tests(8) {
         is( $res[0], 5, 'kill() doesn’t touch $! on failure' );
         is( $res[1], 5, 'kill() doesn’t touch $^E on failure' );
 
-        like( $res[2], qr<Kill>, 'kill() as user on a root-owned process' ) or diag explain $trap;
-        like( $res[2], qr<TERM>, 'the signal is in the error' );
+        like( $res[2], qr<Kill>,        'kill() as user on a root-owned process' );
+        like( $res[2], qr<TERM>,        'the signal is in the error' );
         like( $res[2], qr<$parent_pid>, 'the PID is in the error' );
     }
 
