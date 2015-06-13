@@ -185,7 +185,7 @@ sub chdir {
     my $ret;
 
     if (@args) {
-        $ret = chdir( $args[0] ) or do {
+        $ret = CORE::chdir( $args[0] ) or do {
             if ( __is_a_fh( $args[0] ) ) {
                 $NS->__THROW('Chdir');
             }
@@ -195,7 +195,7 @@ sub chdir {
         };
     }
     else {
-        $ret = chdir or do {
+        $ret = CORE::chdir or do {
             my $path = _get_what_chdir_took_as_homedir();
 
             if ( !defined $path ) {
@@ -763,7 +763,7 @@ sub fcntl {
     my ( $NS, $fh, $func, $scalar ) = @_;
 
     local ( $!, $^E );
-    my $ok = fcntl( $fh, $func, $scalar ) or do {
+    my $ok = CORE::fcntl( $fh, $func, $scalar ) or do {
         $NS->__THROW('Fcntl');
     };
 
