@@ -23,3 +23,11 @@ Revision history for IO-Die
 
 0.033
         chdir() fallback on VMS (UNTESTED!)
+
+0.04
+        make Devel::Cover *sort* of work nicely with this;
+        test coverage is actually much higher, but for some
+        reason Devel::Cover thinks it’s around 22%.
+
+        Ensure that, if exceptions aren’t thrown, the functions return
+        as they should.
