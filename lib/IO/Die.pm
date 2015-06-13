@@ -106,7 +106,7 @@ sub open {
         die "Avoid most forms of two-argument open(). (See $file and its tests for allowable forms.)";
     }
 
-    return CORE::open( $$handle_r, $mode, $expr, @list ) || do {
+    my $ok = CORE::open( $$handle_r, $mode, $expr, @list ) or do {
         if ( $mode eq '|-' || $mode eq '-|' ) {
             my $cmd = $expr;
 
@@ -127,6 +127,8 @@ sub open {
 
         $NS->__THROW( 'FileOpen', mode => $mode, path => $expr );
     };
+
+    return $ok;
 }
 
 sub sysopen {
@@ -162,9 +164,11 @@ sub chroot {
         $filename = $_;
     }
 
-    return CORE::chroot($filename) || do {
+    my $ok = CORE::chroot($filename) or do {
         $NS->__THROW( 'Chroot', filename => $filename );
     };
+
+    return $ok;
 }
 
 sub chdir {
@@ -350,9 +354,11 @@ sub close {
     my ( $NS, $fh ) = @_;
 
     local ( $!, $^E );
-    return ( $fh ? CORE::close($fh) : CORE::close() ) || do {
+    my $ok = ( $fh ? CORE::close($fh) : CORE::close() ) or do {
         $NS->__THROW('Close');
     };
+
+    return $ok;
 }
 
 #NOTE: See above about read/sysread; the same duplicated code problem
@@ -362,27 +368,33 @@ sub seek {
     my ( $NS, $fh, $pos, $whence ) = @_;
 
     local ( $!, $^E );
-    return CORE::seek( $fh, $pos, $whence ) || do {
+    my $ok = CORE::seek( $fh, $pos, $whence ) or do {
         $NS->__THROW( 'FileSeek', whence => $whence, position => $pos );
     };
+
+    return $ok;
 }
 
 sub sysseek {
     my ( $NS, $fh, $pos, $whence ) = @_;
 
     local ( $!, $^E );
-    return CORE::sysseek( $fh, $pos, $whence ) || do {
+    my $ok =  CORE::sysseek( $fh, $pos, $whence ) or do {
         $NS->__THROW( 'FileSeek', whence => $whence, position => $pos );
     };
+
+    return $ok;
 }
 
 sub truncate {
     my ( $NS, $fh_or_expr, $length ) = @_;
 
     local ( $!, $^E );
-    return CORE::truncate( $fh_or_expr, $length ) || do {
+    my $ok =  CORE::truncate( $fh_or_expr, $length ) or do {
         $NS->__THROW( 'FileTruncate', length => $length );
     };
+
+    return $ok;
 }
 
 #----------------------------------------------------------------------
@@ -391,27 +403,33 @@ sub opendir {
     my ( $NS, $dh_r, $dir ) = ( shift, \shift, shift );
 
     local ( $!, $^E );
-    return CORE::opendir( $$dh_r, $dir ) || do {
+    my $ok =  CORE::opendir( $$dh_r, $dir ) or do {
         $NS->__THROW( 'DirectoryOpen', path => $dir );
     };
+
+    return $ok;
 }
 
 sub rewinddir {
     my ( $NS, $dh ) = @_;
 
     local ( $!, $^E );
-    return CORE::rewinddir($dh) || do {
+    my $ok =  CORE::rewinddir($dh) or do {
         $NS->__THROW('DirectoryRewind');
     };
+
+    return $ok;
 }
 
 sub closedir {
     my ( $NS, $dh ) = @_;
 
     local ( $!, $^E );
-    return CORE::closedir($dh) || do {
+    my $ok =  CORE::closedir($dh) or do {
         $NS->__THROW('DirectoryClose');
     };
+
+    return $ok;
 }
 
 #----------------------------------------------------------------------
@@ -473,9 +491,11 @@ sub flock {
     my ( $NS, $fh, $operation ) = @_;
 
     local ( $!, $^E );
-    return CORE::flock( $fh, $operation ) || do {
+    my $ok =  CORE::flock( $fh, $operation ) or do {
         $NS->__THROW( 'Flock', operation => $operation );
     };
+
+    return $ok;
 }
 
 #NOTE: This will only chmod() one thing at a time. It refuses to support
@@ -495,13 +515,15 @@ sub chmod {
     #cf. https://rt.perl.org/Ticket/Display.html?id=122703
     local ( $!, $^E );
 
-    return CORE::chmod( $mode, $target ) || do {
+    my $ok = CORE::chmod( $mode, $target ) or do {
         if ( __is_a_fh($target) ) {
             $NS->__THROW( 'Chmod', permissions => $mode );
         }
 
         $NS->__THROW( 'Chmod', permissions => $mode, path => $target );
     };
+
+    return $ok;
 }
 
 #NOTE: This will only chown() one thing at a time. It refuses to support
@@ -519,31 +541,37 @@ sub chown {
 
     local ( $!, $^E );
 
-    return CORE::chown( $uid, $gid, $target ) || do {
+    my $ok = CORE::chown( $uid, $gid, $target ) or do {
         if ( __is_a_fh($target) ) {
             $NS->__THROW( 'Chown', uid => $uid, gid => $gid );
         }
 
         $NS->__THROW( 'Chown', uid => $uid, gid => $gid, path => $target );
     };
+
+    return $ok;
 }
 
 sub link {
     my ( $NS, $old, $new ) = @_;
 
     local ( $!, $^E );
-    return CORE::link( $old, $new ) || do {
+    my $ok = CORE::link( $old, $new ) || do {
         $NS->__THROW( 'Link', oldpath => $old, newpath => $new );
     };
+
+    return $ok;
 }
 
 sub symlink {
     my ( $NS, $old, $new ) = @_;
 
     local ( $!, $^E );
-    return CORE::symlink( $old, $new ) || do {
+    my $ok = CORE::symlink( $old, $new ) or do {
         $NS->__THROW( 'SymlinkCreate', oldpath => $old, newpath => $new );
     };
+
+    return $ok;
 }
 
 sub readlink {
@@ -551,18 +579,22 @@ sub readlink {
     my $path = @_ ? shift : $_;
 
     local ( $!, $^E );
-    return CORE::readlink($path) || do {
+    my $ok = CORE::readlink($path) or do {
         $NS->__THROW( 'SymlinkRead', path => $path );
     };
+
+    return $ok;
 }
 
 sub rename {
     my ( $NS, $old, $new ) = @_;
 
     local ( $!, $^E );
-    return CORE::rename( $old, $new ) || do {
+    my $ok = CORE::rename( $old, $new ) or do {
         $NS->__THROW( 'Rename', oldpath => $old, newpath => $new );
     };
+
+    return $ok;
 }
 
 #NOTE: This will only unlink() one file at a time. It refuses to support
@@ -583,9 +615,11 @@ sub unlink {
     }
 
     local ( $!, $^E );
-    return CORE::unlink(@paths) || do {
+    my $ok = CORE::unlink(@paths) or do {
         $NS->__THROW( 'Unlink', path => $paths[0] );
     };
+
+    return $ok;
 }
 
 sub mkdir {
@@ -624,9 +658,11 @@ sub rmdir {
     }
 
     local ( $!, $^E );
-    return CORE::rmdir( $args[0] ) || do {
+    my $ok = CORE::rmdir( $args[0] ) or do {
         $NS->__THROW( 'DirectoryDelete', path => $args[0] );
     };
+
+    return $ok;
 }
 
 sub fork {
@@ -656,18 +692,22 @@ sub kill {
 sub exec {
     my ( $NS, $progname ) = @_;
 
-    exec {$progname} $progname, @_ or do {
+    my $ok = CORE::exec {$progname} $progname, @_ or do {
         $NS->__THROW( 'Exec', program => $progname, arguments => \@_ );
     };
+
+    return $ok;
 }
 
 sub pipe {
     my ( $NS, $read_r, $write_r ) = ( shift, \shift, \shift );
 
     local ( $!, $^E );
-    return CORE::pipe( $$read_r, $$write_r ) || do {
+    my $ok = CORE::pipe( $$read_r, $$write_r ) or do {
         $NS->__THROW('Pipe');
     };
+
+    return $ok;
 }
 
 my $DEFAULT_BINMODE_LAYER = ':raw';    #cf. perldoc -f binmode
@@ -680,27 +720,33 @@ sub binmode {
     }
 
     local ( $!, $^E );
-    return binmode( $fh_r, $layer ) || do {
+    my $ok = CORE::binmode( $fh_r, $layer ) or do {
         $NS->__THROW( 'Binmode', layer => $layer );
     };
+
+    return $ok;
 }
 
 sub utime {
     my ( $NS, $atime, $mtime, @files ) = @_;
 
     local ( $!, $^E );
-    return utime( $atime, $mtime, @files ) || do {
+    my $ok = CORE::utime( $atime, $mtime, @files ) or do {
         $NS->__THROW( 'Utime', atime => $atime, mtime => $mtime, files => \@files );
     };
+
+    return $ok;
 }
 
 sub fcntl {
     my ( $NS, $fh, $func, $scalar ) = @_;
 
     local ( $!, $^E );
-    return fcntl( $fh, $func, $scalar ) || do {
+    my $ok = fcntl( $fh, $func, $scalar ) or do {
         $NS->__THROW('Fcntl');
     };
+
+    return $ok;
 }
 
 sub select {
@@ -725,45 +771,55 @@ sub socket {
     my ( $NS, $socket_r, $domain, $type, $protocol ) = ( shift, \shift, shift, shift, shift );
 
     local ( $!, $^E );
-    return socket( $$socket_r, $domain, $type, $protocol ) || do {
+    my $ok = CORE::socket( $$socket_r, $domain, $type, $protocol ) or do {
         $NS->__THROW( 'SocketOpen', domain => $domain, type => $type, protocol => $protocol );
     };
+
+    return $ok;
 }
 
 sub socketpair {
     my ( $NS, $socket1_r, $socket2_r, $domain, $type, $protocol ) = ( \shift, shift, shift, shift );
 
     local ( $!, $^E );
-    return socketpair( $$socket1_r, $$socket2_r, $domain, $type, $protocol ) || do {
+    my $ok = CORE::socketpair( $$socket1_r, $$socket2_r, $domain, $type, $protocol ) or do {
         $NS->__THROW( 'SocketPair', domain => $domain, type => $type, protocol => $protocol );
     };
+
+    return $ok;
 }
 
 sub bind {
     my ( $NS, $socket, $name ) = @_;
 
     local ( $!, $^E );
-    return CORE::bind( $socket, $name ) || do {
+    my $ok = CORE::bind( $socket, $name ) or do {
         $NS->__THROW( 'SocketBind', name => $name );
     };
+
+    return $ok;
 }
 
 sub connect {
     my ( $NS, $socket, $name ) = @_;
 
     local ( $!, $^E );
-    return CORE::connect( $socket, $name ) || do {
+    my $ok = CORE::connect( $socket, $name ) or do {
         $NS->__THROW( 'SocketConnect', name => $name );
     };
+
+    return $ok;
 }
 
 sub accept {
     my ( $NS, $new_socket, $generic_socket ) = @_;
 
     local ( $!, $^E );
-    return CORE::accept( $new_socket, $generic_socket ) || do {
+    my $ok = CORE::accept( $new_socket, $generic_socket ) or do {
         $NS->__THROW('SocketAccept');
     };
+
+    return $ok;
 }
 
 sub getsockopt {
@@ -794,9 +850,11 @@ sub listen {
     my ( $NS, $socket, $queuesize ) = @_;
 
     local ( $!, $^E );
-    return CORE::listen( $socket, $queuesize ) || do {
+    my $ok = CORE::listen( $socket, $queuesize ) or do {
         $NS->__THROW( 'SocketListen', queuesize => $queuesize );
     };
+
+    return $ok;
 }
 
 sub recv {
