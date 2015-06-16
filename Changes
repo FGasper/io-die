@@ -31,3 +31,7 @@ Revision history for IO-Die
 
         Ensure that, if exceptions aren’t thrown, the functions return
         as they should.
+
+0.042
+        Include test suite with distribution.
+        Fix test failures on Cygwin and pre-5.8.9 perls.
