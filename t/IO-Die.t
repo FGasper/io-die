@@ -187,15 +187,19 @@ sub test_open_on_a_scalar_ref : Tests(3) {
 
     my $fh;
 
-    my $ok = IO::Die->open( $fh, '<', \123 );
-    ok( $ok, 'opened file handle to read from a scalar ref (constant)' );
+    SKIP: {
+        skip 'Need Perl 5.8.9 at least!', $self->num_tests() if $^V lt v5.8.9;
 
-    is( <$fh>, 123, '...and the file handle reads fine' );
+        my $ok = IO::Die->open( $fh, '<', \123 );
+        ok( $ok, 'opened file handle to read from a scalar ref (constant)' );
 
-    dies_ok(
-        sub { IO::Die->open( $fh, '>', \123 ) },
-        'error from creating write-to file handle on a scalar ref constant',
-    );
+        is( <$fh>, 123, '...and the file handle reads fine' );
+
+        dies_ok(
+            sub { IO::Die->open( $fh, '>', \123 ) },
+            'error from creating write-to file handle on a scalar ref constant',
+        );
+    }
 
     return;
 }
