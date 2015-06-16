@@ -1370,10 +1370,14 @@ sub test_chmod : Tests(12) {
 sub test_chown : Tests(12) {
     my ($self) = @_;
 
-    my $nobody_uid = ( getpwnam $self->_dummy_user() )[2];
-    my $nobody_gid = ( getgrnam $self->_dummy_user() )[2];
+    my $dummy = $self->_dummy_user();
 
   SKIP: {
+        skip 'Need to identify a “dummy” user for this test', $self->num_tests() if !$dummy;
+
+        my $nobody_uid = ( getpwnam $dummy )[2];
+        my $nobody_gid = ( getgrnam $dummy )[2];
+
         skip 'Need *nix OS for tests', $self->num_tests() if !$nobody_uid;
         skip 'Must be root!',          $self->num_tests() if $>;
 
@@ -1796,15 +1800,25 @@ sub test_fork : Tests(1) {
 sub test_fork_failure : Tests(2) {
     my ($self) = @_;
 
-    my $uid = ( getpwnam $self->_dummy_user() )[2];
-    my $gid = ( getgrnam $self->_dummy_user() )[2];
-
-    local $@;
+    my $dummy = $self->_dummy_user();
 
   SKIP: {
+        skip 'Need to identify a “dummy” user for this test', $self->num_tests() if !$dummy;
+
+        my $uid = ( getpwnam $dummy )[2];
+        my $gid = ( getgrnam $dummy )[2];
+
         skip 'Need *nix OS for tests!', $self->num_tests() if !$uid;
-        skip 'Need BSD::Resource',      $self->num_tests() if !eval { require BSD::Resource; };
-        skip 'Must be root!',           $self->num_tests() if $>;
+
+        try {
+            require BSD::Resource;
+        }
+        catch {
+            diag $_;
+            skip 'Need BSD::Resource', $self->num_tests();
+        };
+
+        skip 'Must be root!', $self->num_tests() if $>;
 
         pipe my $rdr, my $wtr;
 
@@ -1887,10 +1901,14 @@ sub test_pipe : Tests(5) {
 sub test_pipe_failure : Tests(2) {
     my ($self) = @_;
 
-    my $uid = ( getpwnam $self->_dummy_user() )[2];
-    my $gid = ( getgrnam $self->_dummy_user() )[2];
+    my $dummy = $self->_dummy_user();
 
   SKIP: {
+        skip 'Need to identify a “dummy” user for this test', $self->num_tests() if !$dummy;
+
+        my $uid = ( getpwnam $dummy )[2];
+        my $gid = ( getgrnam $dummy )[2];
+
         skip 'Need *nix OS for tests!', $self->num_tests() if !$uid;
         skip 'Must be root!',           $self->num_tests() if $>;
 
@@ -2219,10 +2237,14 @@ sub test_kill_reject_multiple : Tests(1) {
 sub test_kill : Tests(8) {
     my ($self) = @_;
 
-    my $nobody_uid = ( getpwnam $self->_dummy_user() )[2];
-    my $nobody_gid = ( getgrnam $self->_dummy_user() )[2];
+    my $dummy = $self->_dummy_user();
 
   SKIP: {
+        skip 'Need to identify a “dummy” user for this test', $self->num_tests() if !$dummy;
+
+        my $nobody_uid = ( getpwnam $dummy )[2];
+        my $nobody_gid = ( getgrnam $dummy )[2];
+
         skip 'Need *nix OS for tests', $self->num_tests() if !$nobody_uid;
         skip 'Must be root!',          $self->num_tests() if $>;
 
