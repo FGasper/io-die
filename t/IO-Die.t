@@ -752,11 +752,17 @@ sub test_truncate : Tests(10) {
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    my $str = $self->_errno_to_str( Errno::EINVAL() );
+    my $errstr;
+    if ( $^O eq 'cygwin' ) {
+        $errstr = $self->_errno_to_str( Errno::EBADF() );
+    }
+    else {
+        $errstr = $self->_errno_to_str( Errno::EINVAL() );
+    }
 
     like(
         $err,
-        qr<$str>,
+        qr<$errstr>,
         "exception’s error()",
     ) or diag explain $@;
 
@@ -774,11 +780,11 @@ sub test_truncate : Tests(10) {
     );
     $err = $@;
 
-    $str = $self->_errno_to_str( Errno::ENOENT() );
+    $errstr = $self->_errno_to_str( Errno::ENOENT() );
 
     like(
         $err,
-        qr<$str>,
+        qr<$errstr>,
         "exception’s error()",
     ) or diag explain $err;
 
