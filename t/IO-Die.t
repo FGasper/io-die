@@ -1335,9 +1335,13 @@ sub test_chmod : Tests(12) {
     );
     is( 0777 & ( IO::Die->stat($dir) )[2], 0111, '...and the chmod() did NOT happen' );
 
-    $ok = IO::Die->chmod( 0321, $fh );
-    is( $ok, 1, 'returns 1 if one filehandle chmod()ed' );
-    is( 0777 & ( IO::Die->stat($fh) )[2], 0321, '...and the chmod() worked' );
+  SKIP: {
+        skip 'chmod() on filehandle needs perl >= 5.8.8', 2 if $^V lt v5.8.8;
+
+        $ok = IO::Die->chmod( 0321, $fh );
+        is( $ok, 1, 'returns 1 if one filehandle chmod()ed' );
+        is( 0777 & ( IO::Die->stat($fh) )[2], 0321, '...and the chmod() worked' );
+    }
 
     IO::Die->close($fh);
 
@@ -1418,22 +1422,26 @@ sub test_chown : Tests(13) {
         my ( $file, $fh ) = $self->tempfile();
         die "\$! has changed!" if $! != 7;
 
-        $ok = IO::Die->chown( -1, $nobody_gid, $fh );
-        is( $ok,    1, 'returns 1 if one filehandle chown()ed' );
-        is( 0 + $!, 7, '...and it left $! alone' );
+      SKIP: {
+            skip 'chown() on file handle needs perl >= 5.8.8', 5 if $^V lt v5.8.8;
 
-        is( ( IO::Die->stat($fh) )[5], $nobody_gid, '...and the chown() worked' ) or diag explain [ IO::Die->stat($fh) ];
-        die "\$! has changed!" if $! != 7;
+            $ok = IO::Die->chown( -1, $nobody_gid, $fh );
+            is( $ok,    1, 'returns 1 if one filehandle chown()ed' );
+            is( 0 + $!, 7, '...and it left $! alone' );
 
-        IO::Die->close($fh);
-        die "\$! has changed!" if $! != 7;
+            is( ( IO::Die->stat($fh) )[5], $nobody_gid, '...and the chown() worked' ) or diag explain [ IO::Die->stat($fh) ];
+            die "\$! has changed!" if $! != 7;
 
-        throws_ok(
-            sub { IO::Die->chown( $>, 0 + $), $fh ) },
-            qr<Chown>,
-            'failure when chown()ing a closed filehandle',
-        );
-        is( 0 + $!, 7, '...and it left $! alone' );
+            IO::Die->close($fh);
+            die "\$! has changed!" if $! != 7;
+
+            throws_ok(
+                sub { IO::Die->chown( $>, 0 + $), $fh ) },
+                qr<Chown>,
+                'failure when chown()ing a closed filehandle',
+            );
+            is( 0 + $!, 7, '...and it left $! alone' );
+        }
 
         my $err = $@;
 
@@ -1793,17 +1801,19 @@ sub test_exec : Tests(3) {
   SKIP: {
         skip 'This test requires a *nix OS!', 1 if !`which echo`;
 
-        open my $script_fh, '>', "$scratch/ha ha ha";
+        my $script_name = "$scratch/ha ha ha";
+
+        open my $script_fh, '>', $script_name;
         print {$script_fh} "#!/bin/sh$/echo oyoyoy$/";
-        chmod 0755, $script_fh;
+        chmod 0755, $script_name;    #NB: old perls can’t chmod() a file handle
         close $script_fh;
 
         pipe my $rfh, my $wfh;
         my $pid = fork || do {
             close $rfh;
             open \*STDOUT, '>&=' . fileno($wfh);
-            IO::Die->exec("$scratch/ha ha ha");
-            exit 1;    #just in case
+            IO::Die->exec($script_name);
+            exit 1;                  #just in case
         };
         close $wfh;
         my $child_out = do { local $/; <$rfh> };

@@ -43,3 +43,6 @@ Revision history for IO-Die
         Fix race condition in tests
         Missing local($!, $^E) around File::Temp
         preload all of Test::Deep
+
+0.045
+        Fix tests for pre-PerlIO perls (can’t chmod() a file handle)

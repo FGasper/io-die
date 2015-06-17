@@ -12,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.044
+Version 0.045
 
 =cut
 
-our $VERSION = '0.044';
+our $VERSION = '0.045';
 
 #----------------------------------------------------------------------
 #PROTECTED

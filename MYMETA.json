@@ -37,7 +37,7 @@
    "provides" : {
       "IO::Die" : {
          "file" : "lib/IO/Die.pm",
-         "version" : "0.043"
+         "version" : "0.045"
       }
    },
    "release_status" : "stable",
@@ -46,6 +46,6 @@
          "http://opensource.org/licenses/artistic-license-2.0.php"
       ]
    },
-   "version" : "0.043",
+   "version" : "0.045",
    "x_serialization_backend" : "JSON::PP version 2.27203"
 }
