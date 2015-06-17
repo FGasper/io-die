@@ -38,3 +38,8 @@ Revision history for IO-Die
 
 0.043
         Solaris test fix
+
+0.044
+        Fix race condition in tests
+        Missing local($!, $^E) around File::Temp
+        preload all of Test::Deep

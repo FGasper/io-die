@@ -59,10 +59,12 @@ sub _dummy_user {
 }
 
 sub tempdir {
+    local ( $!, $^E );
     return File::Temp::tempdir();
 }
 
 sub tempfile {
+    local ( $!, $^E );
     my @fh_and_name = File::Temp::tempfile();
 
     return wantarray ? reverse(@fh_and_name) : $fh_and_name[1];
@@ -1112,8 +1114,6 @@ sub test_chdir_vms_homedir : Tests(6) {
             );
             my $err = $@;
 
-            _preload_Test_Deep();
-
             cmp_deeply(
                 $err,
                 all(
@@ -1215,8 +1215,6 @@ sub test_chdir : Tests(22) {
         );
         my $err = $@;
 
-        _preload_Test_Deep();
-
         cmp_deeply(
             $err,
             all(
@@ -1299,10 +1297,13 @@ sub test_chdir : Tests(22) {
 }
 
 #cf. https://github.com/rjbs/Test-Deep/issues/26
-sub _preload_Test_Deep {
+sub _preload_Test_Deep : Tests(startup) {
     local ( $!, $^E );
-    all();
-    re(qr<.>);
+
+    #Can't just pass the :preload flag in to use() above
+    #because that will prevent exporting the normal symbols.
+    #
+    Test::Deep->import(':preload');
 
     return;
 }
@@ -1379,7 +1380,7 @@ sub test_chmod : Tests(12) {
     return;
 }
 
-sub test_chown : Tests(12) {
+sub test_chown : Tests(13) {
     my ($self) = @_;
 
     my $dummy = $self->_dummy_user();
@@ -1410,24 +1411,31 @@ sub test_chown : Tests(12) {
             sub { IO::Die->chown( -1, $nobody_gid, $dir, $dir2 ) },
             'die()d with >1 path passed',
         );
+
         is( ( IO::Die->stat($dir) )[5], 0 + $), '...and the chown() did NOT happen' );
+        die "\$! has changed!" if $! != 7;
 
         my ( $file, $fh ) = $self->tempfile();
+        die "\$! has changed!" if $! != 7;
 
         $ok = IO::Die->chown( -1, $nobody_gid, $fh );
-        is( $ok, 1, 'returns 1 if one filehandle chown()ed' );
+        is( $ok,    1, 'returns 1 if one filehandle chown()ed' );
+        is( 0 + $!, 7, '...and it left $! alone' );
+
         is( ( IO::Die->stat($fh) )[5], $nobody_gid, '...and the chown() worked' ) or diag explain [ IO::Die->stat($fh) ];
+        die "\$! has changed!" if $! != 7;
 
         IO::Die->close($fh);
+        die "\$! has changed!" if $! != 7;
 
         throws_ok(
             sub { IO::Die->chown( $>, 0 + $), $fh ) },
             qr<Chown>,
             'failure when chown()ing a closed filehandle',
         );
-        my $err = $@;
-
         is( 0 + $!, 7, '...and it left $! alone' );
+
+        my $err = $@;
 
       TODO: {
             local $TODO = 'https://rt.perl.org/Ticket/Display.html?id=122703';
@@ -1508,13 +1516,17 @@ sub test_lstat : Tests(7) {
 
     `touch $dir/empty`;
 
+    my $time_before = time;
     symlink 'empty', "$dir/symlink";
+    my $time_after = time;
 
     my @file_stat = lstat "$dir/empty";
-    my @link_stat = lstat "$dir/symlink";
 
     #sanity
     die "huh?" if "@file_stat" ne join( ' ', stat "$dir/symlink" );
+
+    my @link_stat_cmp = lstat "$dir/symlink";
+    $_ = any( $time_before .. $time_after ) for @link_stat_cmp[ 8 .. 10 ];
 
     local $! = 7;
 
@@ -1522,11 +1534,13 @@ sub test_lstat : Tests(7) {
     ok( $scalar, 'lstat() in scalar context (with a filename) returns something truthy' );
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    is_deeply(
+    cmp_deeply(
         [ IO::Die->lstat("$dir/symlink") ],
-        \@link_stat,
+        \@link_stat_cmp,
         'lstat() (in list context) finds the symlink and stats that, not the referant file',
     );
+
+    die "cmp_deeply() changed \$!" if $! != 7;
 
     IO::Die->unlink("$dir/symlink");
 
@@ -1534,9 +1548,9 @@ sub test_lstat : Tests(7) {
     {
         $SIG{'__WARN__'} = sub { };
 
-        is_deeply(
+        cmp_deeply(
             [ IO::Die->lstat( \*_ ) ],
-            \@link_stat,
+            \@link_stat_cmp,
             'lstat() reads the cache when passed in “\*_”',
         );
     }
