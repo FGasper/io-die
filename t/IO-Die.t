@@ -187,7 +187,7 @@ sub test_open_on_a_scalar_ref : Tests(3) {
 
     my $fh;
 
-    SKIP: {
+  SKIP: {
         skip 'Need Perl 5.8.9 at least!', $self->num_tests() if $^V lt v5.8.9;
 
         my $ok = IO::Die->open( $fh, '<', \123 );
@@ -756,13 +756,15 @@ sub test_truncate : Tests(10) {
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    my $errstr;
-    if ( $^O eq 'cygwin' ) {
-        $errstr = $self->_errno_to_str( Errno::EBADF() );
-    }
-    else {
-        $errstr = $self->_errno_to_str( Errno::EINVAL() );
-    }
+    #Cygwin and Solaris seem to use EBADF; others EINVAL.
+    my $errstr = join(
+        '|',
+        map { quotemeta( $self->_errno_to_str( Errno->can($_)->() ) ) }
+          qw(
+          EBADF
+          EINVAL
+          )
+    );
 
     like(
         $err,

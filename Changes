@@ -35,3 +35,6 @@ Revision history for IO-Die
 0.042
         Include test suite with distribution.
         Fix test failures on Cygwin and pre-5.8.9 perls.
+
+0.043
+        Solaris test fix
