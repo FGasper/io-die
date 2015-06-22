@@ -1814,7 +1814,8 @@ sub test_exec : Tests(3) {
         my $pid = fork || do {
             close $rfh;
             open \*STDOUT, '>&=' . fileno($wfh);
-            IO::Die->exec($script_name);
+            eval { IO::Die->exec($script_name); };
+            diag explain [ 'child', $@ ] if $@;
             exit 1;                  #just in case
         };
         close $wfh;
