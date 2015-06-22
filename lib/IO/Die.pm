@@ -12,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.045
+Version 0.046
 
 =cut
 
-our $VERSION = '0.045';
+our $VERSION = '0.046';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -839,10 +839,13 @@ sub connect {
 }
 
 sub accept {
-    my ( $NS, $new_socket, $generic_socket ) = @_;
+    my ($NS, $generic_socket) = @_[0, 2];
+
+    #https://github.com/pjcj/Devel--Cover/issues/125
+    #my ( $NS, $new_socket, $generic_socket ) = @_;
 
     local ( $!, $^E );
-    my $ok = CORE::accept( $new_socket, $generic_socket ) or do {
+    my $ok = CORE::accept( $_[1], $generic_socket ) or do {
         $NS->__THROW('SocketAccept');
     };
 

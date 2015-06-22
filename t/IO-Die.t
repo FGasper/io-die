@@ -6,7 +6,7 @@ use strict;
 use warnings;
 
 BEGIN {
-    if ( $^V ge v5.10.0 ) {
+    if ( $^V ge v5.10.1 ) {
         require autodie;
     }
 }
@@ -21,11 +21,12 @@ our ( $a, $b );
 use Cwd    ();
 use Socket ();
 use Errno  ();
-use Fcntl;
+#use Fcntl;
 
 use Test::More;
 use Test::NoWarnings;
-use Test::Deep;
+use Data::Dumper;
+use Test::Deep qw(:v1);
 use Test::Exception;
 
 use Capture::Tiny ();
@@ -1828,7 +1829,7 @@ sub test_exec : Tests(3) {
 sub test_fork : Tests(1) {
     my $pid = IO::Die->fork() || do { exit };
     ok( $pid, 'PID returned' );
-    waitpid $pid, 0;
+    do { local $?; waitpid $pid, 0 };
 
     return;
 }
@@ -2188,7 +2189,7 @@ sub test_select_multiplex : Tests(1) {
 
     IO::Die->close($pread);
 
-    waitpid $pid, 0;
+    do { local $?; waitpid $pid, 0 };
 
     #----------------------------------------------------------------------
 
@@ -2197,12 +2198,16 @@ sub test_select_multiplex : Tests(1) {
     return;
 }
 
-sub test_socket : Tests(3) {
+sub test_socket : Tests(5) {
     my ($self) = @_;
 
     my $socket = IO::Handle->new();
 
-    is( IO::Die->socket( $socket, &Socket::PF_UNIX, &Socket::SOCK_STREAM, 0 ), 1, "socket creation ok" );
+    local $! = 7;
+
+    is( IO::Die->socket( $socket, &Socket::PF_UNIX, &Socket::SOCK_STREAM, &Socket::PF_UNSPEC ), 1, "socket creation ok" );
+
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
     local $@;
 
@@ -2214,9 +2219,12 @@ sub test_socket : Tests(3) {
             all(
                 re($domain),
                 re('SocketOpen'),
+                re('-1'),
             ),
-            "socket() creation failure exception is right type and contains $domain",
+            "socket() creation failure exception is right type and contains domain and protocol",
         );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
     }
 
     for my $type (&Socket::SOCK_STREAM) {
@@ -2227,10 +2235,313 @@ sub test_socket : Tests(3) {
             all(
                 re($type),
                 re('SocketOpen'),
+                re('-1'),
             ),
-            "socket() creation failure exception is right type and contains $type",
+            "socket() creation failure exception is right type and contains socket type and protocol",
         );
     }
+
+    return;
+}
+
+sub test_socketpair : Tests(11) {
+    my ($self) = @_;
+
+    local $! = 7;
+
+    is( IO::Die->socketpair( my $skt1, my $skt2, &Socket::PF_UNIX, &Socket::SOCK_STREAM, &Socket::PF_UNSPEC ), 1, "socketpair creation ok" );
+
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    {
+        local $!;
+
+        is(
+            syswrite( $skt1, '424242' ),
+            6,
+            'write to socket 1',
+        );
+
+        is(
+            sysread( $skt2, my $buf, 6 ),
+            6,
+            'read from socket 2',
+        );
+
+        is( $buf, '424242', 'sent over socket pair 1 -> 2 ok' );
+
+        is(
+            syswrite( $skt2, '565656' ),
+            6,
+            'write to socket 2',
+        );
+
+        is(
+            sysread( $skt1, $buf, 6, length $buf ),
+            6,
+            'read from socket 1',
+        );
+
+        is( $buf, '424242565656', 'sent over socket pair 2 -> 1 ok' );
+    }
+
+    local $@;
+
+    for my $domain (&Socket::AF_INET) {
+        eval { IO::Die->socketpair( $skt1, $skt2, $domain, &Socket::SOCK_STREAM, -1 ); };
+
+        cmp_deeply(
+            $@,
+            all(
+                re($domain),
+                re('SocketPair'),
+                re('-1'),
+            ),
+            "socketpair() creation failure exception is right type and contains domain and protocol",
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+    }
+
+    for my $type (&Socket::SOCK_STREAM) {
+        eval { IO::Die->socketpair( $skt1, $skt2, &Socket::AF_INET, $type, -1 ); };
+
+        cmp_deeply(
+            $@,
+            all(
+                re($type),
+                re('SocketPair'),
+                re('-1'),
+            ),
+            "socketpair() creation failure exception is right type and contains socket type and protocol",
+        );
+    }
+
+    return;
+}
+
+sub test_socket_client : Tests(3) {
+    #TODO: Verify that a given port is open.
+    my $PORT = 4597;
+
+    my $proto = getprotobyname('tcp');
+
+    my $got_USR1 = 0;
+    local $SIG{'USR1'} = sub { $got_USR1++ };
+
+    local $@;
+    local $! = 7;
+
+    my $sockname = Socket::pack_sockaddr_in( $PORT, Socket::inet_aton('localhost') );
+
+    eval { IO::Die->connect( \*STDIN, $sockname ) };
+    cmp_deeply(
+        $@,
+        all(
+            re('SocketConnect'),
+            re( qr<\Q$sockname\E> ),
+        ),
+        'setsockopt() failure',
+    );
+
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    my $child_pid = IO::Die->fork() or do {
+        try {
+            IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
+            IO::Die->bind( $srv_fh, Socket::pack_sockaddr_in( $PORT, &Socket::INADDR_ANY ) );
+            IO::Die->listen( $srv_fh, 2 );
+
+            kill 'USR1', getppid();
+
+            IO::Die->accept( my $redshirt_fh, $srv_fh );
+        }
+        catch {
+            diag explain $_;
+            die $_;
+        }
+        finally {
+            kill 'USR1', getppid();
+            diag explain [ 'child err', $@ ] if $@;
+        };
+
+        exit;
+    };
+
+    try {
+        sleep 1 while !$got_USR1;
+
+        IO::Die->socket( my $cl_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
+
+        ok(
+            IO::Die->connect( $cl_fh, $sockname ),
+            'connect() succeeds',
+        );
+    }
+    catch {
+        diag explain $_;
+        die $_;
+    }
+    finally {
+        local $?;
+        waitpid $child_pid, 0;
+    };
+
+    return;
+}
+
+sub test_socket_server : Tests(25) {
+
+    #TODO: Verify that a given port is open.
+    my $PORT = 4597;
+
+    my $proto = getprotobyname('tcp');
+
+    my $got_USR1 = 0;
+    local $SIG{'USR1'} = sub { $got_USR1++ };
+
+    my $child_pid = IO::Die->fork() or do {
+        eval {
+            sleep 1 while !$got_USR1;
+
+            IO::Die->socket( my $cl_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
+            IO::Die->connect( $cl_fh, Socket::pack_sockaddr_in( $PORT, Socket::inet_aton('localhost') ) );
+            IO::Die->read( $cl_fh, my $buf, 2048 );
+            IO::Die->print( $cl_fh, 'from client' );
+        };
+        diag explain [ 'child err', $@ ] if $@;
+
+        exit;
+    };
+
+    try {
+        local ( $@, $!, $^E );
+        $! = 7;
+
+        IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
+
+        eval { IO::Die->setsockopt( $srv_fh, -1, &Socket::SO_REUSEADDR, 7 ) };
+        cmp_deeply(
+            $@,
+            all(
+                re('SocketSetOpt'),
+                re(-1),
+                re(&Socket::SO_REUSEADDR),
+                re(7),
+            ),
+            'setsockopt() failure',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        ok(
+            IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_REUSEADDR, 1 ),
+            'setsockopt() per perldoc perlipc',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        my $sockopt = IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_REUSEADDR );
+
+        like(
+            $sockopt,
+            qr<[\1\2\4\x{08}]>,
+            'getsockopt(): one of the bytes of SOL_SOCKET/SO_REUSEADDR is nonzero',
+        ) or diag Data::Dumper::Dumper($sockopt);
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        eval { IO::Die->bind( $srv_fh, '@@@@' ) };
+        cmp_deeply(
+            $@,
+            all(
+                re('SocketBind'),
+                re(qr<@@@@>),
+            ),
+            'bind() failure',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        ok(
+            IO::Die->bind( $srv_fh, Socket::pack_sockaddr_in( $PORT, &Socket::INADDR_ANY ) ),
+            'bind() per perldoc perlipc',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        eval { IO::Die->listen( \*STDERR, -1 ) };
+        cmp_deeply(
+            $@,
+            all(
+                re('SocketListen'),
+                re(qr<-1>),
+            ),
+            'listen() failure',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        ok(
+            IO::Die->listen( $srv_fh, 2 ),
+            'listen() per perldoc perlipc',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        IO::Die->kill( 'USR1', $child_pid );
+
+        my $paddr = IO::Die->accept( my $cl_fh, $srv_fh );
+
+        isa_ok( $cl_fh, 'GLOB', 'auto-vivify the filehandle on accept()' );
+
+        ok(
+            $paddr,
+            'accept() per perldoc perlipc',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        my ( $accept_port, $accept_iaddr ) = Socket::unpack_sockaddr_in($paddr);
+        like(
+            $accept_port,
+            qr<\A[1-9][0-9]*\z>,
+            'accept() port',
+        );
+        is( $accept_iaddr, Socket::inet_aton('localhost'), 'accept() address' );
+
+        is(
+            IO::Die->syswrite( $cl_fh, "from server\n" ),
+            12,
+            'print() to connect() socket',
+        );
+
+        ok(
+            IO::Die->shutdown( $cl_fh, &Socket::SHUT_WR ),
+            'shutdown() writing',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+
+        IO::Die->read( $cl_fh, my $from_client, 2048 );
+        is( $from_client, 'from client', 'read from connect() socket' );
+
+        eval { IO::Die->shutdown( $cl_fh, &Socket::SHUT_WR ) };
+        cmp_deeply(
+            $@,
+            all(
+                re('SocketShutdown'),
+            ),
+            'shutdown() failure',
+        );
+
+        is( 0 + $!, 7, '...and leaves $! alone' );
+    }
+    catch { die $_ }
+    finally {
+        IO::Die->kill( 'USR1', $child_pid );    #in case it hasn’t already been sent
+        do { local $?; waitpid $child_pid, 0 };
+    };
 
     return;
 }
@@ -2248,7 +2559,7 @@ sub test_CREATE_ERROR : Test(1) {
         $err,
         {
             type  => 'Read',
-            attrs => isa('HASH'),
+            attrs => Test::Deep::Isa('HASH'),
         },
         '_CREATE_ERROR can override the default exception',
     ) or diag explain $err;
@@ -2326,7 +2637,7 @@ sub test_kill : Tests(8) {
         my @res = split m<$/>, do { local $/; <$rdr> };
         close $rdr;
 
-        waitpid $parasite_pid, 0;
+        do { local $?; waitpid $parasite_pid, 0 };
 
         is( $res[0], 5, 'kill() doesn’t touch $! on failure' );
         is( $res[1], 5, 'kill() doesn’t touch $^E on failure' );
