@@ -839,7 +839,7 @@ sub connect {
 }
 
 sub accept {
-    my ($NS, $generic_socket) = @_[0, 2];
+    my ( $NS, $generic_socket ) = @_[ 0, 2 ];
 
     #https://github.com/pjcj/Devel--Cover/issues/125
     #my ( $NS, $new_socket, $generic_socket ) = @_;
@@ -1279,7 +1279,11 @@ Open an issue at the GitHub URL above. Patches are welcome!
 
 =over 4
 
-=item * More tests, especially for socket functions.
+=item * More tests.
+
+=item * Right now this B<kind> of works on Windows, but the tests use fork(),
+so there all kinds of weird failures that, while they can happen in real code,
+don’t really stem from this module.
 
 =back
 

@@ -21,6 +21,7 @@ our ( $a, $b );
 use Cwd    ();
 use Socket ();
 use Errno  ();
+
 #use Fcntl;
 
 use Test::More;
@@ -2320,36 +2321,63 @@ sub test_socketpair : Tests(11) {
     return;
 }
 
-sub test_socket_client : Tests(3) {
-    #TODO: Verify that a given port is open.
-    my $PORT = 4597;
+sub _bind_free_port {
+    my ($socket) = @_;
 
+    my $sockname;
+
+    alarm 60;
+    while (1) {
+        my $port = int( 60000 * rand ) + 1024;
+        $sockname = Socket::pack_sockaddr_in( $port, &Socket::INADDR_ANY );
+        my $ok;
+        try {
+            $ok = IO::Die->bind( $socket, $sockname );
+        };
+        last if $ok;
+    }
+
+    alarm 0;
+
+    return $sockname;
+}
+
+sub test_socket_client : Tests(4) {
     my $proto = getprotobyname('tcp');
 
     my $got_USR1 = 0;
     local $SIG{'USR1'} = sub { $got_USR1++ };
 
+    pipe my $p_rd, my $c_wr;
+
     local $@;
     local $! = 7;
 
-    my $sockname = Socket::pack_sockaddr_in( $PORT, Socket::inet_aton('localhost') );
+    my $bad_sockname = Socket::pack_sockaddr_in( 1234, &Socket::INADDR_ANY );
+    eval { IO::Die->connect( \*STDIN, $bad_sockname ) };
+    my $err = $@;
 
-    eval { IO::Die->connect( \*STDIN, $sockname ) };
     cmp_deeply(
-        $@,
+        $err,
         all(
             re('SocketConnect'),
-            re( qr<\Q$sockname\E> ),
+            re(qr<\Q$bad_sockname\E>),
         ),
-        'setsockopt() failure',
+        'connect() failure',
     );
 
     is( 0 + $!, 7, '...and leaves $! alone' );
 
     my $child_pid = IO::Die->fork() or do {
+        close $p_rd;
+
         try {
             IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
-            IO::Die->bind( $srv_fh, Socket::pack_sockaddr_in( $PORT, &Socket::INADDR_ANY ) );
+
+            my $sockname = _bind_free_port($srv_fh);
+            IO::Die->print( $c_wr, $sockname );
+            IO::Die->close($c_wr);
+
             IO::Die->listen( $srv_fh, 2 );
 
             kill 'USR1', getppid();
@@ -2357,16 +2385,21 @@ sub test_socket_client : Tests(3) {
             IO::Die->accept( my $redshirt_fh, $srv_fh );
         }
         catch {
-            diag explain $_;
+            diag explain [ 'child', $_ ];
             die $_;
         }
         finally {
             kill 'USR1', getppid();
-            diag explain [ 'child err', $@ ] if $@;
         };
 
         exit;
     };
+
+    IO::Die->close($c_wr);
+
+    IO::Die->read( $p_rd, my $sockname, 1024 );
+
+    $! = 7;
 
     try {
         sleep 1 while !$got_USR1;
@@ -2377,6 +2410,8 @@ sub test_socket_client : Tests(3) {
             IO::Die->connect( $cl_fh, $sockname ),
             'connect() succeeds',
         );
+
+        is( $! + 0, 7, '...and leaves $! alone' );
     }
     catch {
         diag explain $_;
@@ -2390,22 +2425,26 @@ sub test_socket_client : Tests(3) {
     return;
 }
 
-sub test_socket_server : Tests(25) {
-
-    #TODO: Verify that a given port is open.
-    my $PORT = 4597;
+sub test_socket_server : Tests(24) {
 
     my $proto = getprotobyname('tcp');
 
     my $got_USR1 = 0;
     local $SIG{'USR1'} = sub { $got_USR1++ };
 
+    pipe my $c_rd, my $p_wr;
+
     my $child_pid = IO::Die->fork() or do {
+        IO::Die->close($p_wr);
         eval {
             sleep 1 while !$got_USR1;
 
             IO::Die->socket( my $cl_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
-            IO::Die->connect( $cl_fh, Socket::pack_sockaddr_in( $PORT, Socket::inet_aton('localhost') ) );
+
+            IO::Die->read( $c_rd, my $sockname, 1024 );
+            IO::Die->close($c_rd);
+
+            IO::Die->connect( $cl_fh, $sockname );
             IO::Die->read( $cl_fh, my $buf, 2048 );
             IO::Die->print( $cl_fh, 'from client' );
         };
@@ -2413,6 +2452,8 @@ sub test_socket_server : Tests(25) {
 
         exit;
     };
+
+    IO::Die->close($c_rd);
 
     try {
         local ( $@, $!, $^E );
@@ -2463,12 +2504,11 @@ sub test_socket_server : Tests(25) {
 
         is( 0 + $!, 7, '...and leaves $! alone' );
 
-        ok(
-            IO::Die->bind( $srv_fh, Socket::pack_sockaddr_in( $PORT, &Socket::INADDR_ANY ) ),
-            'bind() per perldoc perlipc',
-        );
+        my $sockname = _bind_free_port($srv_fh);
+        IO::Die->print( $p_wr, $sockname );
+        IO::Die->close($p_wr);
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+        is( 0 + $!, 7, 'successful bind() leaves $! alone' );
 
         eval { IO::Die->listen( \*STDERR, -1 ) };
         cmp_deeply(
