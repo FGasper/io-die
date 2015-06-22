@@ -21,8 +21,7 @@ our ( $a, $b );
 use Cwd    ();
 use Socket ();
 use Errno  ();
-
-#use Fcntl;
+use Fcntl;
 
 use Test::More;
 use Test::NoWarnings;
@@ -428,11 +427,15 @@ sub _test_read_func {
 
     close $fh;
 
-    throws_ok(
-        sub { $func_cr->( 'IO::Die', $fh, $buffer, 7 ) },
-        qr<Read>,
-        'error read on a closed filehandle',
-    );
+    {
+        local $SIG{'__WARN__'} = sub { };
+        throws_ok(
+            sub { $func_cr->( 'IO::Die', $fh, $buffer, 7 ) },
+            qr<Read>,
+            'error read on a closed filehandle',
+        );
+    }
+
     like( $@, qr<7>, '...and the error has the intended number of bytes' );
 
     return;
@@ -554,42 +557,47 @@ sub test_syswrite : Tests(14) {
     close $fh;
 
     open my $rfh, '<', $file;
-    throws_ok(
-        sub { IO::Die->syswrite( $rfh, 'abcde' ) },
-        qr<Write>,
-        'exception when writing to a non-write filehandle',
-    );
-    like( $@, qr<5>, '...and the exception contains the number of bytes meant to be written' );
 
-    throws_ok(
-        sub { IO::Die->syswrite( $rfh, 'abcde', 2 ) },
-        qr<2>,
-        'The exception contains the correct number of bytes meant to be written if there was a LENGTH',
-    );
+    {
+        no warnings;
 
-    throws_ok(
-        sub { IO::Die->syswrite( $rfh, 'abcde', 200 ) },
-        qr<5>,
-        'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH',
-    );
+        throws_ok(
+            sub { IO::Die->syswrite( $rfh, 'abcde' ) },
+            qr<Write>,
+            'exception when writing to a non-write filehandle',
+        );
+        like( $@, qr<5>, '...and the exception contains the number of bytes meant to be written' );
 
-    throws_ok(
-        sub { IO::Die->syswrite( $rfh, 'abcde', 2, 1 ) },
-        qr<2>,
-        'The exception contains the correct number of bytes meant to be written if there was a LENGTH and positive OFFSET',
-    );
+        throws_ok(
+            sub { IO::Die->syswrite( $rfh, 'abcde', 2 ) },
+            qr<2>,
+            'The exception contains the correct number of bytes meant to be written if there was a LENGTH',
+        );
 
-    throws_ok(
-        sub { IO::Die->syswrite( $rfh, 'abcde', 200, 1 ) },
-        qr<4>,
-        'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH and positive OFFSET',
-    );
+        throws_ok(
+            sub { IO::Die->syswrite( $rfh, 'abcde', 200 ) },
+            qr<5>,
+            'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH',
+        );
 
-    throws_ok(
-        sub { IO::Die->syswrite( $rfh, 'abcde', 200, -3 ) },
-        qr<3>,
-        'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH and negative OFFSET',
-    );
+        throws_ok(
+            sub { IO::Die->syswrite( $rfh, 'abcde', 2, 1 ) },
+            qr<2>,
+            'The exception contains the correct number of bytes meant to be written if there was a LENGTH and positive OFFSET',
+        );
+
+        throws_ok(
+            sub { IO::Die->syswrite( $rfh, 'abcde', 200, 1 ) },
+            qr<4>,
+            'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH and positive OFFSET',
+        );
+
+        throws_ok(
+            sub { IO::Die->syswrite( $rfh, 'abcde', 200, -3 ) },
+            qr<3>,
+            'The exception contains the correct number of bytes meant to be written if there was an over-long LENGTH and negative OFFSET',
+        );
+    }
 
     return;
 }
@@ -2070,6 +2078,7 @@ sub test_systell : Tests(3) {
 
     close $tfh;
 
+    local $SIG{'__WARN__'} = sub { };
     dies_ok(
         sub { IO::Die->systell($tfh) },
         'systell() on a closed filehandle die()s',

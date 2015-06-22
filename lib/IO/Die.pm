@@ -24,7 +24,7 @@ our $VERSION = '0.046';
 #Override in subclasses as needed
 sub _CREATE_ERROR {
     shift;
-    return shift() . ": @_";
+    return shift() . ": " . join( ' ', map { defined() ? $_ : q<> } @_ );
 }
 
 sub _DO_WITH_ERROR { die $_[1] }
