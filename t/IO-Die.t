@@ -2381,6 +2381,8 @@ sub test_socket_client : Tests(4) {
     my $child_pid = IO::Die->fork() or do {
         close $p_rd;
 
+        my $sent_USR1;
+
         try {
             IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
 
@@ -2390,7 +2392,7 @@ sub test_socket_client : Tests(4) {
 
             IO::Die->listen( $srv_fh, 2 );
 
-            kill 'USR1', getppid();
+            $sent_USR1 = kill 'USR1', getppid();
 
             IO::Die->accept( my $redshirt_fh, $srv_fh );
         }
@@ -2399,7 +2401,7 @@ sub test_socket_client : Tests(4) {
             die $_;
         }
         finally {
-            kill 'USR1', getppid();
+            $sent_USR1 ||= kill 'USR1', getppid();
         };
 
         exit;
@@ -2464,6 +2466,8 @@ sub test_socket_server : Tests(24) {
     };
 
     IO::Die->close($c_rd);
+
+    my $sent_USR1;
 
     try {
         local ( $@, $!, $^E );
@@ -2539,7 +2543,7 @@ sub test_socket_server : Tests(24) {
 
         is( 0 + $!, 7, '...and leaves $! alone' );
 
-        IO::Die->kill( 'USR1', $child_pid );
+        $sent_USR1 = IO::Die->kill( 'USR1', $child_pid );
 
         my $paddr = IO::Die->accept( my $cl_fh, $srv_fh );
 
@@ -2589,7 +2593,7 @@ sub test_socket_server : Tests(24) {
     }
     catch { die $_ }
     finally {
-        IO::Die->kill( 'USR1', $child_pid );    #in case it hasn’t already been sent
+        $sent_USR1 ||= IO::Die->kill( 'USR1', $child_pid );
         do { local $?; waitpid $child_pid, 0 };
     };
 
