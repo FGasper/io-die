@@ -2562,7 +2562,8 @@ sub test_socket_server : Tests(24) {
             qr<\A[1-9][0-9]*\z>,
             'accept() port',
         );
-        is( $accept_iaddr, Socket::inet_aton('localhost'), 'accept() address' );
+
+        is( $accept_iaddr, Socket::inet_aton('127.0.0.1'), 'accept() address' );
 
         is(
             IO::Die->syswrite( $cl_fh, "from server\n" ),
