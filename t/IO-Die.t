@@ -2334,12 +2334,12 @@ sub test_socketpair : Tests(11) {
 sub _bind_free_port {
     my ($socket) = @_;
 
-    my $sockname;
+    my $port;
 
     alarm 60;
     while (1) {
-        my $port = int( 60000 * rand ) + 1024;
-        $sockname = Socket::pack_sockaddr_in( $port, &Socket::INADDR_ANY );
+        $port = int( 60000 * rand ) + 1024;
+        my $sockname = Socket::pack_sockaddr_in( $port, &Socket::INADDR_ANY );
         my $ok;
         try {
             $ok = IO::Die->bind( $socket, $sockname );
@@ -2349,7 +2349,7 @@ sub _bind_free_port {
 
     alarm 0;
 
-    return $sockname;
+    return $port;
 }
 
 sub test_socket_client : Tests(4) {
@@ -2384,8 +2384,8 @@ sub test_socket_client : Tests(4) {
         try {
             IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
 
-            my $sockname = _bind_free_port($srv_fh);
-            IO::Die->print( $c_wr, $sockname );
+            my $port = _bind_free_port($srv_fh);
+            IO::Die->print( $c_wr, Socket::pack_sockaddr_in( $port, &Socket::INADDR_ANY ) );
             IO::Die->close($c_wr);
 
             IO::Die->listen( $srv_fh, 2 );
@@ -2514,8 +2514,8 @@ sub test_socket_server : Tests(24) {
 
         is( 0 + $!, 7, '...and leaves $! alone' );
 
-        my $sockname = _bind_free_port($srv_fh);
-        IO::Die->print( $p_wr, $sockname );
+        my $port = _bind_free_port($srv_fh);
+        IO::Die->print( $p_wr, Socket::pack_sockaddr_in( $port, &Socket::INADDR_ANY ) );
         IO::Die->close($p_wr);
 
         is( 0 + $!, 7, 'successful bind() leaves $! alone' );
