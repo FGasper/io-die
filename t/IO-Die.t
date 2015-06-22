@@ -2411,12 +2411,12 @@ sub test_socket_client : Tests(4) {
 
     IO::Die->read( $p_rd, my $sockname, 1024 );
 
-    $! = 7;
-
     try {
         sleep 1 while !$got_USR1;
 
         IO::Die->socket( my $cl_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
+
+        $! = 7;
 
         ok(
             IO::Die->connect( $cl_fh, $sockname ),
