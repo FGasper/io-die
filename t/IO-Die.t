@@ -559,7 +559,7 @@ sub test_syswrite : Tests(14) {
     open my $rfh, '<', $file;
 
     {
-        no warnings;
+        $SIG{'__WARN__'} = sub { };
 
         throws_ok(
             sub { IO::Die->syswrite( $rfh, 'abcde' ) },
