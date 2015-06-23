@@ -271,6 +271,61 @@ sub test_open_from_a_command : Tests(9) {
     return;
 }
 
+sub test_chroot : Tests(1) {
+    my ($self) = @_;
+
+  SKIP: {
+        skip 'Must be root!', 1 if $>;
+
+        my $dir = $self->tempdir();
+        mkdir "$dir/thedir";
+        do { open my $wfh, '>', "$dir/thefile";  print {$wfh} 'thecontent' };
+        do { open my $wfh, '>', "$dir/thedir/f"; print {$wfh} 'thatcontent' };
+
+        pipe my $p_rd, my $c_wr;
+
+        my $cpid = fork() or do {
+            close $p_rd;
+
+            eval {
+                $! = 7;
+                IO::Die->chroot($dir);
+                my $num = $! + 0;
+
+                open my $rfh, '<', 'thefile';
+                print {$c_wr} "$num," . <$rfh> . $/;
+                close $rfh;
+
+                IO::Die->chroot() for ('thedir');
+                $num = $! + 0;
+
+                open $rfh, '<', 'f';
+                print {$c_wr} "$num," . <$rfh> . $/;
+                close $rfh;
+
+                close $c_wr;
+            };
+            diag $@;
+            exit;
+        };
+
+        close $c_wr;
+
+        is_deeply(
+            [<$p_rd>],
+            [ "7,thecontent$/", "7,thatcontent$/" ],
+            'chroot(): with argument, without argument',
+        );
+
+        close $p_rd;
+
+        local $?;
+        waitpid $cpid, 0;
+    }
+
+    return;
+}
+
 sub test_open_to_a_command : Tests(9) {
     my ($self) = @_;
 
