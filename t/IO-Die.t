@@ -2690,7 +2690,11 @@ sub test_socket_server : Tests(24) {
         IO::Die->read( $cl_fh, my $from_client, 2048 );
         is( $from_client, 'from client', 'read from connect() socket' );
 
-        eval { IO::Die->shutdown( $cl_fh, &Socket::SHUT_WR ) };
+        #NB: NetBSD doesn't indicate an error when you try to
+        #shutdown( $cl_fh, &Socket::SHUT_WR ) a second time. (Bug?)
+        #cf. https://rt.perl.org/Ticket/Display.html?id=125465
+        #
+        eval { IO::Die->shutdown( \*STDOUT, &Socket::SHUT_WR ) };
         cmp_deeply(
             $@,
             all(
