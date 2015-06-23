@@ -1,5 +1,8 @@
 Revision history for IO-Die
 
+0.047   2015-06-22
+        Fix socket tests for Linux and other platforms
+
 0.046   2015-06-22
         Add tests for socket functions
         Fix accept() so that it autovivifies correctly
