@@ -278,8 +278,9 @@ sub test_chroot : Tests(1) {
         skip 'Must be root!', 1 if $>;
 
         my $dir = $self->tempdir();
+        do { open my $wfh, '>', "$dir/thefile"; print {$wfh} 'thecontent' };
+
         mkdir "$dir/thedir";
-        do { open my $wfh, '>', "$dir/thefile";  print {$wfh} 'thecontent' };
         do { open my $wfh, '>', "$dir/thedir/f"; print {$wfh} 'thatcontent' };
 
         pipe my $p_rd, my $c_wr;
@@ -288,19 +289,24 @@ sub test_chroot : Tests(1) {
             close $p_rd;
 
             eval {
+                chdir $dir;
                 $! = 7;
                 IO::Die->chroot($dir);
                 my $num = $! + 0;
 
                 open my $rfh, '<', 'thefile';
-                print {$c_wr} "$num," . <$rfh> . $/;
+                my $content = <$rfh>;
+                print {$c_wr} "$num,$content$/";
                 close $rfh;
 
-                IO::Die->chroot() for ('thedir');
+                chdir 'thedir';
+                $! = 7;
+                IO::Die->chroot() for ('/thedir');
                 $num = $! + 0;
 
                 open $rfh, '<', 'f';
-                print {$c_wr} "$num," . <$rfh> . $/;
+                $content = <$rfh>;
+                print {$c_wr} "$num,$content$/";
                 close $rfh;
 
                 close $c_wr;
@@ -311,11 +317,12 @@ sub test_chroot : Tests(1) {
 
         close $c_wr;
 
+        my @lines = <$p_rd>;
         is_deeply(
-            [<$p_rd>],
+            \@lines,
             [ "7,thecontent$/", "7,thatcontent$/" ],
             'chroot(): with argument, without argument',
-        );
+        ) or diag explain \@lines;
 
         close $p_rd;
 
