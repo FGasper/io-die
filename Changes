@@ -1,5 +1,8 @@
 Revision history for IO-Die
 
+0.048   2015-06-23
+        Add tests for “outlier” functions
+
 0.047   2015-06-22
         Fix socket tests for Linux and other platforms
 

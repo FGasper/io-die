@@ -2317,6 +2317,53 @@ sub test_socket : Tests(5) {
     return;
 }
 
+sub test_send_recv : Tests(6) {
+
+    socketpair( my $skt1, my $skt2, &Socket::PF_UNIX, &Socket::SOCK_STREAM, &Socket::PF_UNSPEC );
+
+    local $! = 7;
+    IO::Die->send( $skt1, 'msg1', &Socket::MSG_DONTROUTE );
+    IO::Die->recv( $skt2, my $msg, 4, 0 );
+    is( $msg,   'msg1', 'send()/recv()' );
+    is( 0 + $!, 7,      '...and leaves $! alone' );
+
+    close $skt1;
+
+    local $@;
+    eval {
+        local $SIG{'__WARN__'} = sub { };
+        IO::Die->send( $skt1, 'msg2', &Socket::MSG_DONTROUTE );
+    };
+    cmp_deeply(
+        $@,
+        all(
+            re(qr<SocketSend>),
+            re(&Socket::MSG_DONTROUTE),
+        ),
+        'send() failure',
+    );
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    close $skt2;
+
+    local $@;
+    eval {
+        local $SIG{'__WARN__'} = sub { };
+        IO::Die->recv( $skt2, my $n, &Socket::MSG_DONTROUTE );
+    };
+    cmp_deeply(
+        $@,
+        all(
+            re(qr<SocketReceive>),
+            re(0),
+        ),
+        'recv() failure',
+    );
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    return;
+}
+
 sub test_socketpair : Tests(11) {
     my ($self) = @_;
 
@@ -2808,6 +2855,112 @@ sub test_binmode : Tests(9) {
 
     is( 0 + $!,  5, 'binmode() failure left $! alone' );
     is( 0 + $^E, 5, 'binmode() failure left $^E alone' );
+
+    return;
+}
+
+sub test_fileno : Tests(4) {
+    my ($self) = @_;
+
+    my ( $tempfile, $tfh ) = $self->tempfile();
+    close $tfh;
+
+    my $stdout_fileno = fileno \*STDOUT;
+    local $! = 7;
+    is(
+        IO::Die->fileno( \*STDOUT ),
+        $stdout_fileno,
+        'fileno() works',
+    );
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    local $@;
+    eval { IO::Die->fileno($tfh) };
+    cmp_deeply(
+        $@,
+        all(
+            re(qr<Fileno>),
+        ),
+        'exception on invalid fileno()',
+    );
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    return;
+}
+
+sub test_utime : Tests(7) {
+    my ($self) = @_;
+
+    my ( $tempfile,  $tfh )  = $self->tempfile();
+    my ( $tempfile2, $tfh2 ) = $self->tempfile();
+
+    local $! = 7;
+
+    local $@;
+    eval { IO::Die->utime( 100, 101, $tfh, $tfh2 ) };
+    ok( $@, 'utime() with multiple “thingies”' );
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    IO::Die->close($tfh2);
+
+    is(
+        IO::Die->utime( 200, 201, $tempfile ),
+        1,
+        'utime() with 1 filename',
+    );
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    my @stat = IO::Die->stat($tfh);
+    is_deeply(
+        [ @stat[ 8, 9 ] ],
+        [ 200, 201 ],
+        'file times (from filehandle) after filename rename',
+    );
+
+    local $@;
+    eval { IO::Die->utime( 300, 301, "$tempfile/not/there" ) };
+    cmp_deeply(
+        $@,
+        all(
+            re(qr<Utime>),
+        ),
+        'exception on invalid path',
+    );
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    return;
+}
+
+sub test_flock : Tests(4) {
+    my ($self) = @_;
+
+    my ( $tempfile, $tfh ) = $self->tempfile();
+
+    local $! = 7;
+
+    ok(
+        IO::Die->flock( $tfh, &Fcntl::LOCK_EX ),
+        'flock()',
+    );
+    is( 0 + $!, 7, '...and leaves $! alone' );
+
+    IO::Die->close($tfh);
+
+    local $@;
+    eval {
+        local $SIG{'__WARN__'} = sub { };
+        IO::Die->flock( $tfh, &Fcntl::LOCK_UN );
+    };
+
+    cmp_deeply(
+        $@,
+        all(
+            re(qr<Flock>),
+            re(&Fcntl::LOCK_UN),
+        ),
+        'exception from invalid flock()',
+    );
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
     return;
 }

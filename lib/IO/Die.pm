@@ -12,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.047
+Version 0.048
 
 =cut
 
-our $VERSION = '0.047';
+our $VERSION = '0.048';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -748,12 +748,24 @@ sub binmode {
     return $ok;
 }
 
+#NOTE: This will only utime() one thing at a time. It refuses to support
+#multiple utime() operations within the same call. This is in order to provide
+#reliable error reporting.
+#
+#You, of course, can still do: IO::Die->utime() for @items;
+#
 sub utime {
-    my ( $NS, $atime, $mtime, @files ) = @_;
+    my ( $NS, $atime, $mtime, $target, @too_many_args ) = @_;
+
+    die "Only one utime() at a time!" if @too_many_args;
 
     local ( $!, $^E );
-    my $ok = CORE::utime( $atime, $mtime, @files ) or do {
-        $NS->__THROW( 'Utime', atime => $atime, mtime => $mtime, files => \@files );
+    my $ok = CORE::utime( $atime, $mtime, $target ) or do {
+        if ( __is_a_fh($target) ) {
+            $NS->__THROW( 'Utime', atime => $atime, mtime => $mtime, path => $target );
+        }
+
+        $NS->__THROW( 'Utime', atime => $atime, mtime => $mtime );
     };
 
     return $ok;
@@ -1110,6 +1122,8 @@ Only the four-argument form is permitted.
 
 =head2 unlink()
 
+=head2 utime()
+
 Unlike Perl’s built-ins, these will only operate on one filesystem node at a time.
 This restriction is necessary for reliable error reporting because Perl’s
 built-ins have no way of telling us which of multiple filesystem nodes produced
@@ -1257,7 +1271,7 @@ Additional attributes for each type are listed below.
 
 =item Unlink            path
 
-=item Utime             atime, mtime, files
+=item Utime             atime, mtime; OPTIONAL: path
 
 =item Write             length
 
