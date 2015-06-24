@@ -12,11 +12,11 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.050
+Version 0.051
 
 =cut
 
-our $VERSION = '0.050';
+our $VERSION = '0.051';
 
 #----------------------------------------------------------------------
 #PROTECTED
@@ -708,10 +708,10 @@ sub kill {
 }
 
 sub exec {
-    my ( $NS, $progname ) = @_;
+    my ( $NS, $progname, @args ) = @_;
 
-    my $ok = CORE::exec {$progname} $progname, @_ or do {
-        $NS->__THROW( 'Exec', program => $progname, arguments => \@_ );
+    my $ok = CORE::exec {$progname} $progname, @args or do {
+        $NS->__THROW( 'Exec', program => $progname, arguments => \@args );
     };
 
     return $ok;

@@ -1,5 +1,8 @@
 Revision history for IO-Die
 
+0.051   2015-06-24
+        fix careless exec() arguments mis-parse
+
 0.050   2015-06-24
         tests: Cygwin sockopt option accommodation
 
