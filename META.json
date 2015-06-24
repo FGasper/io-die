@@ -14,15 +14,6 @@
    },
    "name" : "IO-Die",
    "prereqs" : {
-      "build" : {
-         "requires" : {
-            "Capture::Tiny" : "0.30",
-            "Test::Class" : "0.41",
-            "Test::Deep" : "0.114",
-            "Test::NoWarnings" : "0.01",
-            "perl" : "5.008"
-         }
-      },
       "configure" : {
          "requires" : {
             "Module::Build" : "0"
@@ -31,6 +22,16 @@
       "runtime" : {
          "requires" : {
             "perl" : "5.006"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Capture::Tiny" : "0.30",
+            "Test::Class" : "0.41",
+            "Test::Deep" : "0.114",
+            "Test::NoWarnings" : "0.01",
+            "Try::Tiny" : "0",
+            "perl" : "5.008"
          }
       }
    },
