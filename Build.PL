@@ -12,12 +12,13 @@ my $builder = Module::Build->new(
     configure_requires => {
         'Module::Build' => 0,
     },
-    build_requires => {
+    test_requires => {
         perl            => '5.008',
         'Capture::Tiny' => '0.30',
         'Test::Class' => '0.41',
         'Test::Deep'  => '0.114',
         'Test::NoWarnings' => '0.01',
+        'Try::Tiny'     => '0',
     },
     requires => {
         perl => '5.006',    #should work, but the test suite will require 5.8

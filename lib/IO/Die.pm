@@ -1295,6 +1295,8 @@ Open an issue at the GitHub URL above. Patches are welcome!
 
 =item * More tests.
 
+=item * Reduce testing dependencies.
+
 =item * Right now this B<kind> of works on Windows, but the tests use fork(),
 so there all kinds of weird failures that, while they can happen in real code,
 don’t really stem from this module.
