@@ -2584,13 +2584,13 @@ sub test_socket_server : Tests(24) {
 
         IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
 
-        eval { IO::Die->setsockopt( $srv_fh, -1, &Socket::SO_REUSEADDR, 7 ) };
+        eval { IO::Die->setsockopt( $srv_fh, -1, &Socket::SO_DEBUG, 7 ) };
         cmp_deeply(
             $@,
             all(
                 re('SocketSetOpt'),
                 re(-1),
-                re(&Socket::SO_REUSEADDR),
+                re(&Socket::SO_DEBUG),
                 re(7),
             ),
             'setsockopt() failure',
@@ -2599,18 +2599,18 @@ sub test_socket_server : Tests(24) {
         is( 0 + $!, 7, '...and leaves $! alone' );
 
         ok(
-            IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_REUSEADDR, 1 ),
+            IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_DEBUG, 1 ),
             'setsockopt() per perldoc perlipc',
         );
 
         is( 0 + $!, 7, '...and leaves $! alone' );
 
-        my $sockopt = IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_REUSEADDR );
+        my $sockopt = IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_DEBUG );
 
         like(
             $sockopt,
             qr<[\1\2\4\x{08}]>,
-            'getsockopt(): one of the bytes of SOL_SOCKET/SO_REUSEADDR is nonzero',
+            'getsockopt(): one of the bytes of SOL_SOCKET/SO_DEBUG is nonzero',
         ) or diag Data::Dumper::Dumper($sockopt);
 
         is( 0 + $!, 7, '...and leaves $! alone' );
