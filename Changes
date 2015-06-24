@@ -1,5 +1,11 @@
 Revision history for IO-Die
 
+0.050   2015-06-24
+        tests: Cygwin sockopt option accommodation
+
+0.049   2015-06-23
+        tests: NetBSD shutdown() bug/quirk accommodation
+
 0.048   2015-06-23
         Add tests for “outlier” functions
 
