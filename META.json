@@ -26,11 +26,10 @@
       },
       "test" : {
          "requires" : {
-            "Capture::Tiny" : "0.30",
+            "Capture::Tiny" : "0.24",
             "Test::Class" : "0.41",
             "Test::Deep" : "0.114",
             "Test::NoWarnings" : "0.01",
-            "Try::Tiny" : "0",
             "perl" : "5.008"
          }
       }
@@ -38,7 +37,7 @@
    "provides" : {
       "IO::Die" : {
          "file" : "lib/IO/Die.pm",
-         "version" : "0.051"
+         "version" : "0.052"
       }
    },
    "release_status" : "stable",
@@ -47,6 +46,6 @@
          "http://opensource.org/licenses/artistic-license-2.0.php"
       ]
    },
-   "version" : "0.051",
+   "version" : "0.052",
    "x_serialization_backend" : "JSON::PP version 2.27203"
 }
