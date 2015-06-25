@@ -64,6 +64,8 @@ sub runtests {
 
     local $ENV{'TMPDIR'} = $scratch_dir;
 
+    local $| = 1;
+
     return $self->SUPER::runtests(@args);
 }
 
@@ -2617,18 +2619,18 @@ sub test_socket_server : Tests(24) {
     is( 0 + $!, 7, '...and leaves $! alone' );
 
     ok(
-        IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_DEBUG, 1 ),
+        IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_BROADCAST, 1 ),
         'setsockopt() per perldoc perlipc',
     );
 
     is( 0 + $!, 7, '...and leaves $! alone' );
 
-    my $sockopt = IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_DEBUG );
+    my $sockopt = IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_BROADCAST );
 
     like(
         $sockopt,
         qr<[^\0]>,
-        'getsockopt(): one of the bytes of SOL_SOCKET/SO_DEBUG is nonzero',
+        'getsockopt(): one of the bytes of SOL_SOCKET/SO_BROADCAST is nonzero',
       )
       or do {
         local $Data::Dumper::Useqq = 1;
