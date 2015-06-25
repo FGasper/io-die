@@ -73,8 +73,8 @@ sub _dummy_user {
     my ($self) = @_;
 
     if ( !$self->{'_dummy_user'} ) {
-        for my $u (qw( nobody daemon )) {
-            if ( getpwnam $u ) {
+        for my $u (qw( nobody bin daemon )) {
+            if ( getpwnam($u) && getgrnam($u) ) {
                 $self->{'_dummy_user'} = $u;
                 last;
             }
