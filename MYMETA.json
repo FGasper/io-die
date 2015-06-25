@@ -30,7 +30,6 @@
             "Test::Class" : "0.41",
             "Test::Deep" : "0.114",
             "Test::NoWarnings" : "0.01",
-            "Try::Tiny" : "0",
             "perl" : "5.008"
          }
       }

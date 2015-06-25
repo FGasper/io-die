@@ -18,7 +18,9 @@ my $builder = Module::Build->new(
         'Test::Class' => '0.41',
         'Test::Deep'  => '0.114',
         'Test::NoWarnings' => '0.01',
-        'Try::Tiny'     => '0',
+    },
+    test_recommends => {
+        'BSD::Resource' => '0',
     },
     requires => {
         perl => '5.006',    #should work, but the test suite will require 5.8

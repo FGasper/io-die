@@ -31,6 +31,8 @@ use Test::Exception;
 
 use Capture::Tiny ();
 
+use File::Basename ();
+use File::Path     ();
 use File::Spec::Functions;
 use File::Temp ();
 
@@ -43,6 +45,27 @@ if ( !caller ) {
 }
 
 #----------------------------------------------------------------------
+
+sub runtests {
+    my ( $self, @args ) = @_;
+
+    my $curdir = Cwd::abs_path( File::Basename::dirname(__FILE__) );
+
+    my $scratch_dir = catdir( $curdir, "scratch-$$-" . time );
+    mkdir $scratch_dir;
+
+    my $ppid   = $$;
+    my $at_end = t::IO::Die::Finally->new(
+        sub {
+            return if $$ != $ppid;
+            File::Path::remove_tree($scratch_dir);
+        }
+    );
+
+    local $ENV{'TMPDIR'} = $scratch_dir;
+
+    return $self->SUPER::runtests(@args);
+}
 
 sub _dummy_user {
     my ($self) = @_;
@@ -61,12 +84,12 @@ sub _dummy_user {
 
 sub tempdir {
     local ( $!, $^E );
-    return File::Temp::tempdir();
+    return File::Temp::tempdir( CLEANUP => 1 );
 }
 
 sub tempfile {
     local ( $!, $^E );
-    my @fh_and_name = File::Temp::tempfile();
+    my @fh_and_name = File::Temp::tempfile( CLEANUP => 1 );
 
     return wantarray ? reverse(@fh_and_name) : $fh_and_name[1];
 }
@@ -286,6 +309,7 @@ sub test_chroot : Tests(1) {
         pipe my $p_rd, my $c_wr;
 
         my $cpid = fork() or do {
+            my $at_end = t::IO::Die::Finally->new( sub { exit } );
             close $p_rd;
 
             eval {
@@ -311,8 +335,7 @@ sub test_chroot : Tests(1) {
 
                 close $c_wr;
             };
-            diag $@;
-            exit;
+            diag explain $@ if $@;
         };
 
         close $c_wr;
@@ -1469,12 +1492,14 @@ sub test_chown : Tests(13) {
 
         is( 0 + $!, 7, '...and it left $! alone' );
 
+        my $gid_pre_chown = ( IO::Die->stat($dir) )[5];
+
         dies_ok(
             sub { IO::Die->chown( -1, $nobody_gid, $dir, $dir2 ) },
             'die()d with >1 path passed',
         );
 
-        is( ( IO::Die->stat($dir) )[5], 0 + $), '...and the chown() did NOT happen' );
+        is( ( IO::Die->stat($dir) )[5], $gid_pre_chown, '...and the chown() did NOT happen' );
         die "\$! has changed!" if $! != 7;
 
         my ( $file, $fh ) = $self->tempfile();
@@ -2602,9 +2627,13 @@ sub test_socket_server : Tests(24) {
 
     like(
         $sockopt,
-        qr<[\1\2\4\x{08}]>,
+        qr<[^\0]>,
         'getsockopt(): one of the bytes of SOL_SOCKET/SO_DEBUG is nonzero',
-    ) or diag Data::Dumper::Dumper($sockopt);
+      )
+      or do {
+        local $Data::Dumper::Useqq = 1;
+        diag Data::Dumper::Dumper($sockopt);
+      };
 
     is( 0 + $!, 7, '...and leaves $! alone' );
 
