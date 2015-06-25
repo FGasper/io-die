@@ -31,8 +31,8 @@ use Test::Exception;
 
 use Capture::Tiny ();
 
+use File::Spec::Functions;
 use File::Temp ();
-use Try::Tiny;
 
 use IO::Die ();
 
@@ -215,20 +215,20 @@ sub test_open_on_a_file : Tests(6) {
     local $! = 7;
 
     lives_ok(
-        sub { IO::Die->open( my $wfh, '>', "$dir/somefile" ) },
+        sub { IO::Die->open( my $wfh, '>', catfile( $dir, 'somefile' ) ) },
         'open(>) on a new file',
     );
-    ok( ( -f "$dir/somefile" ), '...and it really did open()' );
+    ok( ( -f catfile( $dir, "somefile" ) ), '...and it really did open()' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
     dies_ok(
-        sub { IO::Die->open( my $wfh, ">$dir/somefile" ) },
+        sub { IO::Die->open( my $wfh, ">" . catfile( $dir, 'somefile' ) ) },
         'open(>) fails on 2-arg',
     );
 
     dies_ok(
-        sub { IO::Die->open( my $wfh, '<', "$dir/otherfile" ) },
+        sub { IO::Die->open( my $wfh, '<', catfile( $dir, 'otherfile' ) ) },
         'open(<) on a nonexistent file',
     );
     like( $@, qr<FileOpen>, '...and the error' );
@@ -263,7 +263,7 @@ sub test_open_from_a_command : Tests(9) {
     my $dir = $self->tempdir();
 
     dies_ok(
-        sub { IO::Die->open( $rfh, '-|', "$dir/hahaha" ) },
+        sub { IO::Die->open( $rfh, '-|', catfile( $dir, 'hahaha' ) ) },
         'open() from a nonexistent command',
     );
     like( $@, qr<Exec>, '..and the exception' );
@@ -278,10 +278,10 @@ sub test_chroot : Tests(1) {
         skip 'Must be root!', 1 if $>;
 
         my $dir = $self->tempdir();
-        do { open my $wfh, '>', "$dir/thefile"; print {$wfh} 'thecontent' };
+        do { open my $wfh, '>', catfile( $dir, 'thefile' ); print {$wfh} 'thecontent' };
 
-        mkdir "$dir/thedir";
-        do { open my $wfh, '>', "$dir/thedir/f"; print {$wfh} 'thatcontent' };
+        mkdir catdir( $dir, 'thedir' );
+        do { open my $wfh, '>', catfile( $dir, 'thedir', 'f' ); print {$wfh} 'thatcontent' };
 
         pipe my $p_rd, my $c_wr;
 
@@ -301,7 +301,7 @@ sub test_chroot : Tests(1) {
 
                 chdir 'thedir';
                 $! = 7;
-                IO::Die->chroot() for ('/thedir');
+                IO::Die->chroot() for catdir( rootdir(), 'thedir' );
                 $num = $! + 0;
 
                 open $rfh, '<', 'f';
@@ -376,7 +376,7 @@ sub test_open_to_a_command : Tests(9) {
     my $dir = $self->tempdir();
 
     dies_ok(
-        sub { IO::Die->open( $rfh, '|-', "$dir/hahaha" ) },
+        sub { IO::Die->open( $rfh, '|-', catfile( $dir, 'hahaha' ) ) },
         'open() to a nonexistent command',
     );
     like( $@, qr<Exec>, '..and the exception' );
@@ -391,7 +391,7 @@ sub test_sysopen : Tests(7) {
 
     my ( $opened, $fh );
     dies_ok(
-        sub { $opened = IO::Die->sysopen( $fh, "$dir/notthere", Fcntl::O_RDONLY ) },
+        sub { $opened = IO::Die->sysopen( $fh, catfile( $dir, 'notthere' ), Fcntl::O_RDONLY ) },
         'sysopen(O_RDONLY) on a nonexistent file',
     );
     like( $@, qr<FileOpen>, '..and the exception' ) or diag explain $@;
@@ -402,7 +402,7 @@ sub test_sysopen : Tests(7) {
 
     local $@;
     lives_ok(
-        sub { $opened = IO::Die->sysopen( $fh, "$dir/i_am_here", Fcntl::O_CREAT | Fcntl::O_WRONLY, 0600 ) },
+        sub { $opened = IO::Die->sysopen( $fh, catfile( $dir, 'i_am_here' ), Fcntl::O_CREAT | Fcntl::O_WRONLY, 0600 ) },
         'sysopen(O_CREAT | O_WRONLY) on a nonexistent file',
     );
     ok( $opened, '..and the return is truthy' );
@@ -430,7 +430,7 @@ sub test_sysread : Tests(10) {
     #Let's check sysread()'s unbuffered-ness.
 
     my $dir = $self->tempdir();
-    open my $fh, '+>', "$dir/somefile";
+    open my $fh, '+>', catfile( $dir, 'somefile' );
 
     lives_ok(
         sub {
@@ -550,37 +550,32 @@ sub test_print_without_filehandle : Tests(9) {
         my ( $file, $fh ) = $self->tempfile();
 
         my $orig_fh = $self->_overwrite_stdout($fh);
+        my $at_end = t::IO::Die::Finally->new( sub { select $orig_fh } );
 
-        try {
-            my $printed;
+        my $printed;
+        lives_ok(
+            sub { $printed = IO::Die->print('haha') },
+            'print() to a file with a given string',
+        );
+        ok( $printed, '...and it returns a true value' );
+        is( ( scalar `cat $file` ), 'haha', '...and the print actually happened' );
+
+        for ('hoho') {
             lives_ok(
-                sub { $printed = IO::Die->print('haha') },
-                'print() to a file with a given string',
+                sub { $printed = IO::Die->print() },
+                'print() to a file from $_',
             );
             ok( $printed, '...and it returns a true value' );
-            is( ( scalar `cat $file` ), 'haha', '...and the print actually happened' );
-
-            for ('hoho') {
-                lives_ok(
-                    sub { $printed = IO::Die->print() },
-                    'print() to a file from $_',
-                );
-                ok( $printed, '...and it returns a true value' );
-                is( ( scalar `cat $file` ), 'hahahoho', '...and the print actually happened' );
-            }
-
-            close $fh;
-
-            dies_ok(
-                sub { $printed = IO::Die->print( 'I', 'die' ) },
-                'print() dies when the filehandle is closed',
-            );
-            $err = $@;
+            is( ( scalar `cat $file` ), 'hahahoho', '...and the print actually happened' );
         }
-        catch { die $_ }
-        finally {
-            select $orig_fh;
-        };
+
+        close $fh;
+
+        dies_ok(
+            sub { $printed = IO::Die->print( 'I', 'die' ) },
+            'print() dies when the filehandle is closed',
+        );
+        $err = $@;
     }
 
     like( $err, qr<Write>, '...and the exception' );
@@ -699,38 +694,30 @@ sub test_close_without_filehandle : Tests(5) {
         ( undef, $fh ) = $self->tempfile();
 
         my $orig_fh = $self->_overwrite_stdout($fh);
+        my $at_end = t::IO::Die::Finally->new( sub { select $orig_fh } );
 
-        try {
-            select $fh;    ## no critic qw(ProhibitOneArgSelect)
-            close $fh;
+        select $fh;    ## no critic qw(ProhibitOneArgSelect)
+        close $fh;
 
-            dies_ok(
-                sub { $closed = IO::Die->close() },
-                'close() dies if the select()ed filehandle is already closed',
-            );
-            like( $@, qr<Close>, '...and the exception' );
-        }
-        finally {
-            select $orig_fh;
-        };
+        dies_ok(
+            sub { $closed = IO::Die->close() },
+            'close() dies if the select()ed filehandle is already closed',
+        );
+        like( $@, qr<Close>, '...and the exception' );
     }
 
     {
         ( undef, $fh ) = $self->tempfile();
 
         my $orig_fh = $self->_overwrite_stdout($fh);
+        my $at_end = t::IO::Die::Finally->new( sub { select $orig_fh } );
 
-        try {
-            select $fh;    ## no critic qw(ProhibitOneArgSelect)
+        select $fh;    ## no critic qw(ProhibitOneArgSelect)
 
-            lives_ok(
-                sub { $closed = IO::Die->close() },
-                'close()',
-            );
-        }
-        finally {
-            select $orig_fh;
-        };
+        lives_ok(
+            sub { $closed = IO::Die->close() },
+            'close()',
+        );
     }
 
     ok( $closed,            '...and the return value is truthy' );
@@ -744,7 +731,7 @@ sub test_seek : Tests(5) {
 
     my $dir = $self->tempdir();
 
-    open my $fh, '+>', "$dir/file";
+    open my $fh, '+>', catfile( $dir, 'file' );
     print {$fh} 'a' .. 'z';
 
     my $buffer;
@@ -773,7 +760,7 @@ sub test_sysseek : Tests(5) {
 
     my $dir = $self->tempdir();
 
-    open my $fh, '+>', "$dir/file";
+    open my $fh, '+>', catfile( $dir, 'file' );
     syswrite( $fh, $_ ) for 'a' .. 'z';
 
     my $buffer;
@@ -885,7 +872,7 @@ sub test_opendir : Tests(6) {
     is( 0 + $!, 7, '...and it left $! alone' );
 
     throws_ok(
-        sub { IO::Die->opendir( my $dfh, "$dir/not_there" ) },
+        sub { IO::Die->opendir( my $dfh, catfile( $dir, 'not_there' ) ) },
         qr<DirectoryOpen>,
         'error from opening nonexistent directory',
     );
@@ -917,7 +904,7 @@ sub test_rewinddir : Tests(5) {
         epsilon => 5,
     );
     while ( my ( $fn, $cont ) = each %struct ) {
-        open my $fh, '>', "$dir/$fn";
+        open my $fh, '>', catfile( $dir, $fn );
         print {$fh} $cont or die $!;
         close $fh;
     }
@@ -1007,28 +994,31 @@ sub test_unlink : Tests(10) {
 
     my $dir = $self->tempdir();
 
-    `touch $dir/redshirt$_` for ( 0 .. 9 );
+    for my $n ( 0 .. 9 ) {
+        my $path = catfile( $dir, "redshirt$n" );
+        `touch $path`;
+    }
 
     local $! = 7;
 
-    my $ok = IO::Die->unlink("$dir/redshirt0");
+    my $ok = IO::Die->unlink( catfile( $dir, "redshirt0" ) );
     is( $ok, 1, 'returns 1 if one path unlink()ed' );
-    ok( !do { local $!; -e "$dir/redshirt0" }, '...and the unlink() worked' );
+    ok( !do { local $!; -e catfile( $dir, "redshirt0" ) }, '...and the unlink() worked' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    $ok = IO::Die->unlink() for ("$dir/redshirt9");
+    $ok = IO::Die->unlink() for ( catfile( $dir, "redshirt9" ) );
     is( $ok, 1, 'returns 1 if one path unlink()ed (via $_)' );
-    ok( !do { local $!; -e "$dir/redshirt0" }, '...and the unlink() worked (via $_)' );
+    ok( !do { local $!; -e catfile( $dir, "redshirt0" ) }, '...and the unlink() worked (via $_)' );
 
     dies_ok(
-        sub { IO::Die->unlink( "$dir/redshirt1", "$dir/redshirt2" ) },
+        sub { IO::Die->unlink( catfile( $dir, "redshirt1" ), catfile( $dir, "redshirt2" ) ) },
         'die()d with >1 path passed',
     );
-    ok( do { local $!; -e "$dir/redshirt1" }, '...and the unlink() did NOT happen' );
+    ok( do { local $!; -e catfile( $dir, "redshirt1" ) }, '...and the unlink() did NOT happen' );
 
     throws_ok(
-        sub { IO::Die->unlink("$dir/redshirt0") },
+        sub { IO::Die->unlink( catfile( $dir, "redshirt0" ) ) },
         qr<Unlink>,
         'failure when unlink()ing a nonexistent file',
     );
@@ -1064,22 +1054,22 @@ sub test_mkdir : Tests(10) {
 
     my $ok;
 
-    $ok = IO::Die->mkdir() for ("$dir/dollar_under");
+    $ok = IO::Die->mkdir() for ( catdir( $dir, "dollar_under" ) );
     is( $ok, 1, 'returns 1 if mkdir() with no args' );
-    ok( do { local $!; -e "$dir/dollar_under" }, '...and the mkdir() worked' );
+    ok( do { local $!; -e catdir( $dir, "dollar_under" ) }, '...and the mkdir() worked' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    $ok = IO::Die->mkdir("$dir/one_arg");
+    $ok = IO::Die->mkdir( catdir( $dir, "one_arg" ) );
     is( $ok, 1, 'returns 1 if one path mkdir()ed' );
-    ok( do { local $!; -e "$dir/one_arg" }, '...and the mkdir() worked' );
+    ok( do { local $!; -e catdir( $dir, "one_arg" ) }, '...and the mkdir() worked' );
 
-    $ok = IO::Die->mkdir( "$dir/with_perms", 0111 );
+    $ok = IO::Die->mkdir( catdir( $dir, "with_perms" ), 0111 );
     is( $ok, 1, 'returns 1 if one path mkdir()ed with perms' );
-    ok( do { local $!; -e "$dir/with_perms" }, '...and the mkdir() worked' );
+    ok( do { local $!; -e catdir( $dir, "with_perms" ) }, '...and the mkdir() worked' );
 
     throws_ok(
-        sub { IO::Die->mkdir("$dir/not_there/not_a_chance") },
+        sub { IO::Die->mkdir( catdir( $dir, "not_there", "not_a_chance" ) ) },
         qr<DirectoryCreate>,
         'failure when mkdir()ing a directory in a nonexistent directory',
     );
@@ -1104,28 +1094,28 @@ sub test_rmdir : Tests(10) {
 
     my $dir = $self->tempdir();
 
-    `mkdir $dir/redshirt$_` for ( 0 .. 9 );
+    mkdir catfile( $dir, "redshirt$_" ) for ( 0 .. 9 );
 
     local $! = 7;
 
-    my $ok = IO::Die->rmdir("$dir/redshirt0");
+    my $ok = IO::Die->rmdir( catfile( $dir, "redshirt0" ) );
     is( $ok, 1, 'returns 1 if one path rmdir()ed' );
-    ok( !do { local $!; -e "$dir/redshirt0" }, '...and the rmdir() worked' );
+    ok( !do { local $!; -e catfile( $dir, "redshirt0" ) }, '...and the rmdir() worked' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    $ok = IO::Die->rmdir() for ("$dir/redshirt9");
+    $ok = IO::Die->rmdir() for ( catfile( $dir, "redshirt9" ) );
     is( $ok, 1, 'returns 1 if one path rmdir()ed (via $_)' );
-    ok( !do { local $!; -e "$dir/redshirt0" }, '...and the rmdir() worked (via $_)' );
+    ok( !do { local $!; -e catfile( $dir, "redshirt0" ) }, '...and the rmdir() worked (via $_)' );
 
     dies_ok(
-        sub { IO::Die->rmdir( "$dir/redshirt1", "$dir/redshirt2" ) },
+        sub { IO::Die->rmdir( catfile( $dir, "redshirt1" ), catfile( $dir, "redshirt2" ) ) },
         'die()d with >1 path passed',
     );
-    ok( do { local $!; -e "$dir/redshirt1" }, '...and the rmdir() did NOT happen' );
+    ok( do { local $!; -e catfile( $dir, "redshirt1" ) }, '...and the rmdir() did NOT happen' );
 
     throws_ok(
-        sub { IO::Die->rmdir("$dir/redshirt0") },
+        sub { IO::Die->rmdir( catfile( $dir, "redshirt0" ) ) },
         qr<DirectoryDelete>,
         'failure when rmdir()ing a nonexistent directory',
     );
@@ -1157,55 +1147,53 @@ sub test_chdir_vms_homedir : Tests(6) {
 
         local $! = 5;
 
-        try {
+        my $at_end = t::IO::Die::Finally->new( sub { chdir $orig_dir } );
 
-            local %ENV = (
-                'SYS$HOME' => $tdir,
-            );
+        local %ENV = (
+            'SYS$HOME' => $tdir,
+        );
 
-            ok(
-                IO::Die->chdir(),
-                q<empty chdir() with $ENV{'SYS$HOME'} (but neither HOME nor LOGDIR) defined>,
-            );
+        ok(
+            IO::Die->chdir(),
+            q<empty chdir() with $ENV{'SYS$HOME'} (but neither HOME nor LOGDIR) defined>,
+        );
 
-            is( _getcwd(), $tdir, '...and it did chdir()' );
+        is( _getcwd(), $tdir, '...and it did chdir()' );
 
-            is(
-                0 + $!,
-                5,
-                '...and failure leaves $! alone',
-            );
+        is(
+            0 + $!,
+            5,
+            '...and failure leaves $! alone',
+        );
 
-            #----------------------------------------------------------------------
+        #----------------------------------------------------------------------
 
-            $ENV{'SYS$HOME'} = "$tdir/notthere";
+        $ENV{'SYS$HOME'} = catdir( $tdir, "notthere" );
 
-            dies_ok(
-                sub { IO::Die->chdir("$tdir/notthere") },
-                'chdir() as normal, to a non-existent directory',
-            );
-            my $err = $@;
+        dies_ok(
+            sub { IO::Die->chdir( catdir( $tdir, "notthere" ) ) },
+            'chdir() as normal, to a non-existent directory',
+        );
+        my $err = $@;
 
-            cmp_deeply(
-                $err,
-                all(
-                    re(qr<Chdir:>),
-                    re(qr<path +\Q$tdir\E/notthere>),
-                    re(qr<OS_ERROR +>),
-                    re(qr<EXTENDED_OS_ERROR +>),
-                ),
-                'exception has the right “goods”',
-            );
+        cmp_deeply(
+            $err,
+            all(
+                re(qr<Chdir:>),
+                re(qr<path +\Q$ENV{'SYS$HOME'}\E>),
+                re(qr<OS_ERROR +>),
+                re(qr<EXTENDED_OS_ERROR +>),
+            ),
+            'exception has the right “goods”',
+        );
 
-            is(
-                0 + $!,
-                5,
-                '...and failure leaves $! alone',
-            );
+        is(
+            0 + $!,
+            5,
+            '...and failure leaves $! alone',
+        );
 
-            is( _getcwd(), $tdir, '...and it did NOT chdir()' );
-        }
-        catch { die $_ } finally { chdir $orig_dir };
+        is( _getcwd(), $tdir, '...and it did NOT chdir()' );
     }
 
     return;
@@ -1223,147 +1211,145 @@ sub test_chdir : Tests(22) {
 
     $! = 5;
 
-    try {
-        ok(
-            IO::Die->chdir($tdir),
-            'chdir() as normal, to an existent directory',
-        );
+    ok(
+        IO::Die->chdir($tdir),
+        'chdir() as normal, to an existent directory',
+    );
 
-        is( _getcwd(), $tdir, '...and it really did chdir()' );
+    my $at_end = t::IO::Die::Finally->new( sub { chdir $orig_dir } );
 
-        is(
-            0 + $!,
-            5,
-            '...and it leaves $! alone',
-        );
+    is( _getcwd(), $tdir, '...and it really did chdir()' );
 
-        #----------------------------------------------------------------------
+    is(
+        0 + $!,
+        5,
+        '...and it leaves $! alone',
+    );
 
-        my $dir_fh;
-        {
-            local ( $!, $^E );
-            open $dir_fh, '<', $tdir2;
-        }
+    #----------------------------------------------------------------------
 
-        ok(
-            IO::Die->chdir($dir_fh),
-            'chdir() to a file handle (??)',
-        );
-
-        is( _getcwd(), $tdir2, '...and it really did chdir()' );
-
-        is(
-            0 + $!,
-            5,
-            '...and it leaves $! alone',
-        );
-
-        #----------------------------------------------------------------------
-
-        my $dir_dh;
-        {
-            local ( $!, $^E );
-            opendir $dir_dh, $tdir;
-        }
-
-        ok(
-            IO::Die->chdir($dir_dh),
-            'chdir() to a dir handle',
-        );
-
-        is( _getcwd(), $tdir, '...and it really did chdir()' );
-
-        is(
-            0 + $!,
-            5,
-            '...and it leaves $! alone',
-        );
-
-        #----------------------------------------------------------------------
-
-        dies_ok(
-            sub { IO::Die->chdir("$tdir2/notthere") },
-            'chdir() as normal, to a non-existent directory',
-        );
-        my $err = $@;
-
-        cmp_deeply(
-            $err,
-            all(
-                re(qr<Chdir:>),
-                re(qr<path +\Q$tdir2\E/notthere>),
-                re(qr<OS_ERROR +>),
-                re(qr<EXTENDED_OS_ERROR +>),
-            ),
-            'exception has the right “goods”',
-        );
-
-        is(
-            0 + $!,
-            5,
-            '...and failure leaves $! alone',
-        );
-
-        is( _getcwd(), $tdir, '...and it did NOT chdir()' );
-
-        #----------------------------------------------------------------------
-        {
-            local %ENV = (
-                HOME   => "$tdir/home",
-                LOGDIR => "$tdir/logdir",
-            );
-            dies_ok(
-                sub { IO::Die->chdir() },
-                'chdir() with no args, to a non-existent directory',
-            );
-            my $err = $@;
-
-            like( $err, qr<\Q$tdir\E/home>, 'it tried to chdir() to $ENV{HOME}' );
-
-            is(
-                0 + $!,
-                5,
-                '...and failure leaves $! alone',
-            );
-
-            {
-                local ( $!, $^E );
-                mkdir "$tdir/$_" for qw( home logdir );
-            }
-
-            ok(
-                IO::Die->chdir(),
-                'chdir() with no args when $ENV{HOME} is a real directory',
-            );
-
-            is( _getcwd(), "$tdir/home", '...and it did chdir()' );
-
-            delete $ENV{'HOME'};
-
-            ok(
-                IO::Die->chdir(),
-                'chdir() with no args when $ENV{LOGDIR} is a real directory',
-            );
-
-            is( _getcwd(), "$tdir/logdir", '...and it did chdir()' );
-
-            delete $ENV{'LOGDIR'};
-
-            #TODO: This doesn’t seem right: “perldoc -f chdir” seems to imply that
-            #Perl “happily” does nothing here. “Does nothing” should not be an
-            #error state. (cf. https://rt.perl.org/Ticket/Display.html?id=125373)
-            dies_ok(
-                sub { IO::Die->chdir() },
-                'chdir() with no args when neither $ENV{HOME} nor $ENV{LOGDIR} is set',
-            );
-
-            is( _getcwd(), "$tdir/logdir", '...and it did NOT chdir()' );
-        }
+    my $dir_fh;
+    {
+        local ( $!, $^E );
+        open $dir_fh, '<', $tdir2;
     }
-    catch { die $_ }
-    finally {
-        chdir($orig_dir);
-    };
+
+    ok(
+        IO::Die->chdir($dir_fh),
+        'chdir() to a file handle (??)',
+    );
+
+    is( _getcwd(), $tdir2, '...and it really did chdir()' );
+
+    is(
+        0 + $!,
+        5,
+        '...and it leaves $! alone',
+    );
+
+    #----------------------------------------------------------------------
+
+    my $dir_dh;
+    {
+        local ( $!, $^E );
+        opendir $dir_dh, $tdir;
+    }
+
+    ok(
+        IO::Die->chdir($dir_dh),
+        'chdir() to a dir handle',
+    );
+
+    is( _getcwd(), $tdir, '...and it really did chdir()' );
+
+    is(
+        0 + $!,
+        5,
+        '...and it leaves $! alone',
+    );
+
+    #----------------------------------------------------------------------
+
+    my $notthere2 = catdir( $tdir2, 'notthere' );
+
+    dies_ok(
+        sub { IO::Die->chdir($notthere2) },
+        'chdir() as normal, to a non-existent directory',
+    );
+    my $err = $@;
+
+    cmp_deeply(
+        $err,
+        all(
+            re(qr<Chdir:>),
+            re(qr<path +\Q$notthere2\E>),
+            re(qr<OS_ERROR +>),
+            re(qr<EXTENDED_OS_ERROR +>),
+        ),
+        'exception has the right “goods”',
+    );
+
+    is(
+        0 + $!,
+        5,
+        '...and failure leaves $! alone',
+    );
+
+    is( _getcwd(), $tdir, '...and it did NOT chdir()' );
+
+    #----------------------------------------------------------------------
+    my $tdir_home = catdir( $tdir, 'home' );
+
+    local %ENV = (
+        HOME   => $tdir_home,
+        LOGDIR => catdir( $tdir, 'logdir' ),
+    );
+    dies_ok(
+        sub { IO::Die->chdir() },
+        'chdir() with no args, to a non-existent directory',
+    );
+    $err = $@;
+
+    like( $err, qr<\Q$tdir_home\E>, 'it tried to chdir() to $ENV{HOME}' );
+
+    is(
+        0 + $!,
+        5,
+        '...and failure leaves $! alone',
+    );
+
+    {
+        local ( $!, $^E );
+        mkdir catdir( $tdir, $_ ) for qw( home logdir );
+    }
+
+    ok(
+        IO::Die->chdir(),
+        'chdir() with no args when $ENV{HOME} is a real directory',
+    );
+
+    is( _getcwd(), $tdir_home, '...and it did chdir()' );
+
+    delete $ENV{'HOME'};
+
+    ok(
+        IO::Die->chdir(),
+        'chdir() with no args when $ENV{LOGDIR} is a real directory',
+    );
+
+    is( _getcwd(), catdir( $tdir, 'logdir' ), '...and it did chdir()' );
+
+    delete $ENV{'LOGDIR'};
+
+    #TODO: This doesn’t seem right: “perldoc -f chdir” seems to imply that
+    #Perl “happily” does nothing here. “Does nothing” should not be an
+    #error state. (cf. https://rt.perl.org/Ticket/Display.html?id=125373)
+    dies_ok(
+        sub { IO::Die->chdir() },
+        'chdir() with no args when neither $ENV{HOME} nor $ENV{LOGDIR} is set',
+    );
+
+    is( _getcwd(), catdir( $tdir, 'logdir' ), '...and it did NOT chdir()' );
 
     return;
 }
@@ -1439,7 +1425,7 @@ sub test_chmod : Tests(12) {
     }
 
     throws_ok(
-        sub { IO::Die->chmod( 0456, "$dir/not_there" ) },
+        sub { IO::Die->chmod( 0456, catfile( $dir, 'not_there' ) ) },
         qr<Chmod>,
         'failure when chmod()ing a nonexistent file',
     );
@@ -1530,7 +1516,7 @@ sub test_chown : Tests(13) {
         }
 
         throws_ok(
-            sub { IO::Die->chown( $>, 0 + $), "$dir/not_there" ) },
+            sub { IO::Die->chown( $>, 0 + $), catfile( $dir, 'not_there' ) ) },
             qr<Chown>,
             'failure when chown()ing a nonexistent file',
         );
@@ -1594,35 +1580,36 @@ sub test_lstat : Tests(7) {
 
     my $dir = $self->tempdir();
 
-    `touch $dir/empty`;
+    my $empty_path = catfile( $dir, 'empty' );
+    `touch $empty_path`;
 
     my $time_before = time;
-    symlink 'empty', "$dir/symlink";
+    symlink 'empty', catfile( $dir, 'symlink' );
     my $time_after = time;
 
-    my @file_stat = lstat "$dir/empty";
+    my @file_stat = lstat $empty_path;
 
     #sanity
-    die "huh?" if "@file_stat" ne join( ' ', stat "$dir/symlink" );
+    die "huh?" if "@file_stat" ne join( ' ', stat catfile( $dir, 'symlink' ) );
 
-    my @link_stat_cmp = lstat "$dir/symlink";
+    my @link_stat_cmp = lstat catfile( $dir, 'symlink' );
     $_ = any( $time_before .. $time_after ) for @link_stat_cmp[ 8 .. 10 ];
 
     local $! = 7;
 
-    my $scalar = IO::Die->lstat("$dir/empty");
+    my $scalar = IO::Die->lstat( catfile( $dir, 'empty' ) );
     ok( $scalar, 'lstat() in scalar context (with a filename) returns something truthy' );
     is( 0 + $!, 7, '...and it left $! alone' );
 
     cmp_deeply(
-        [ IO::Die->lstat("$dir/symlink") ],
+        [ IO::Die->lstat( catfile( $dir, 'symlink' ) ) ],
         \@link_stat_cmp,
         'lstat() (in list context) finds the symlink and stats that, not the referant file',
     );
 
     die "cmp_deeply() changed \$!" if $! != 7;
 
-    IO::Die->unlink("$dir/symlink");
+    IO::Die->unlink( catfile( $dir, 'symlink' ) );
 
     #warnings.pm will complain about lstat(_).
     {
@@ -1636,7 +1623,7 @@ sub test_lstat : Tests(7) {
     }
 
     throws_ok(
-        sub { IO::Die->lstat("$dir/symlink") },
+        sub { IO::Die->lstat( catfile( $dir, 'symlink' ) ) },
         qr<Stat>,
         'failure when lstat()ing a nonexistent symlink',
     );
@@ -1659,26 +1646,27 @@ sub test_link : Tests(6) {
     my ($self) = @_;
 
     my $dir = $self->tempdir();
+    my $filepath = catfile( $dir, 'file' );
 
-    `touch $dir/file`;
+    `touch $filepath`;
 
     local $! = 7;
 
-    my $scalar = IO::Die->link( "$dir/file", "$dir/hardlink" );
+    my $scalar = IO::Die->link( $filepath, catfile( $dir, 'hardlink' ) );
     ok( $scalar, 'link() returns something truthy' );
     is( 0 + $!, 7, '...and it left $! alone' );
 
     {
         local $!;
 
-        my @orig_file = lstat "$dir/file";
-        my @the_link  = lstat "$dir/hardlink";
+        my @orig_file = lstat $filepath;
+        my @the_link = lstat catfile( $dir, 'hardlink' );
 
         is_deeply( \@the_link, \@orig_file, 'new hardlink is the same filesystem node as the old filename' );
     }
 
     throws_ok(
-        sub { IO::Die->link( "$dir/notthere", "$dir/not_a_chance" ) },
+        sub { IO::Die->link( catfile( $dir, 'notthere' ), catfile( $dir, 'not_a_chance' ) ) },
         qr<Link>,
         'failure when link()ing to a nonexistent file',
     );
@@ -1701,29 +1689,30 @@ sub test_symlink : Tests(7) {
     my ($self) = @_;
 
     my $dir = $self->tempdir();
+    my $filepath = catfile( $dir, 'file' );
 
-    `touch $dir/file`;
+    `touch $filepath`;
 
     local $! = 7;
 
-    my $scalar = IO::Die->symlink( "file", "$dir/symlink" );
+    my $scalar = IO::Die->symlink( "file", catfile( $dir, "symlink" ) );
     ok( $scalar, 'symlink() returns something truthy' );
     is( 0 + $!, 7, '...and it left $! alone' );
 
     {
         local $!;
 
-        my @orig_file = stat "$dir/file";
-        my @the_link  = stat "$dir/symlink";
+        my @orig_file = stat $filepath;
+        my @the_link = stat catfile( $dir, "symlink" );
 
         is_deeply( \@the_link, \@orig_file, 'new symlink points to the same filesystem node as the old filename' );
     }
 
-    $scalar = IO::Die->symlink( "notthere", "$dir/not_a_chance" );
+    $scalar = IO::Die->symlink( "notthere", catfile( $dir, "not_a_chance" ) );
     ok( $scalar, 'symlink() even lets you create a dangling symlink' );
 
     throws_ok(
-        sub { IO::Die->symlink( "notthere", "$dir/not_a_dir/not_a_chance" ) },
+        sub { IO::Die->symlink( "notthere", catfile( $dir, "not_a_dir", "not_a_chance" ) ) },
         qr<SymlinkCreate>,
         'failure when creating a symlink() in a nonexistent directory',
     );
@@ -1749,17 +1738,18 @@ sub test_readlink : Tests(10) {
 
     local $!;
 
-    symlink 'haha', "$dir/mylink";
+    symlink 'haha', catfile( $dir, "mylink" );
 
-    `touch $dir/myfile`;
+    my $file_path = catfile( $dir, "myfile" );
+    `touch $file_path`;
 
     $! = 7;
 
-    my $scalar = IO::Die->readlink("$dir/mylink");
+    my $scalar = IO::Die->readlink( catfile( $dir, "mylink" ) );
     is( $scalar, 'haha', 'readlink() returns the link’s value (i.e., destination)' );
     is( 0 + $!,  7,      '...and it left $! alone' );
 
-    for ("$dir/mylink") {
+    for ( catfile( $dir, "mylink" ) ) {
         my $scalar = IO::Die->readlink();
         is( $scalar, 'haha', 'readlink() respects $_ if no parameter is passed' );
 
@@ -1781,7 +1771,7 @@ sub test_readlink : Tests(10) {
     }
 
     throws_ok(
-        sub { IO::Die->readlink("$dir/myfile") },
+        sub { IO::Die->readlink( catfile( $dir, "myfile" ) ) },
         qr<SymlinkRead>,
         'failure when reading a symlink that’s actually a file',
     );
@@ -1796,7 +1786,7 @@ sub test_readlink : Tests(10) {
     ) or diag explain $err;
 
     throws_ok(
-        sub { IO::Die->readlink("$dir/not_there") },
+        sub { IO::Die->readlink( catfile( $dir, "not_there" ) ) },
         qr<SymlinkRead>,
         'failure when reading a nonexistent symlink',
     );
@@ -1817,22 +1807,23 @@ sub test_rename : Tests(6) {
     my ($self) = @_;
 
     my $dir = $self->tempdir();
+    my $filepath = catfile( $dir, "file" );
 
-    `touch $dir/file`;
+    `touch $filepath`;
 
     local $! = 7;
 
-    my $scalar = IO::Die->rename( "$dir/file", "$dir/file2" );
+    my $scalar = IO::Die->rename( catfile( $dir, "file" ), catfile( $dir, "file2" ) );
     ok( $scalar, 'rename() returns something truthy' );
     is( 0 + $!, 7, '...and it left $! alone' );
 
     {
         local $!;
-        ok( ( -e "$dir/file2" ), "rename() actually renamed the file" );
+        ok( ( -e catfile( $dir, "file2" ) ), "rename() actually renamed the file" );
     }
 
     throws_ok(
-        sub { IO::Die->rename( "$dir/not_there", "$dir/not_at_all" ) },
+        sub { IO::Die->rename( catfile( $dir, "not_there" ), catfile( $dir, "not_at_all" ) ) },
         qr<Rename>,
         'failure when rename()ing a nonexistent file',
     );
@@ -1860,7 +1851,7 @@ sub test_exec : Tests(3) {
         local $SIG{'__WARN__'} = sub { };
 
         throws_ok(
-            sub { IO::Die->exec("$scratch/not_there") },
+            sub { IO::Die->exec( catfile( $scratch, "not_there" ) ) },
             qr<Exec>,
             'error type',
         );
@@ -1873,7 +1864,7 @@ sub test_exec : Tests(3) {
   SKIP: {
         skip 'This test requires a *nix OS!', 1 if !`which echo`;
 
-        my $script_name = "$scratch/ha ha ha";
+        my $script_name = catfile( $scratch, "ha ha ha" );
 
         open my $script_fh, '>', $script_name;
         print {$script_fh} "#!/bin/sh$/echo oyoyoy$/";
@@ -1919,42 +1910,38 @@ sub test_fork_failure : Tests(2) {
 
         skip 'Need *nix OS for tests!', $self->num_tests() if !$uid;
 
-        try {
-            require BSD::Resource;
-        }
-        catch {
-            diag $_;
+        eval { require BSD::Resource };
+        if ($@) {
+            my $err = $@;
+            diag $err;
             skip 'Need BSD::Resource', $self->num_tests();
-        };
+        }
 
         skip 'Must be root!', $self->num_tests() if $>;
 
         pipe my $rdr, my $wtr;
 
         my $pid = fork || do {
-            try {
-                $> = $uid;
-                $) = $gid;
-                $< = $uid;
+            my $at_end = t::IO::Die::Finally->new( sub { exit } );
 
-                BSD::Resource::setrlimit( BSD::Resource::RLIMIT_NPROC(), 3, 3 ) or die "setrlimit()";
+            $> = $uid;
+            $) = $gid;
+            $< = $uid;
 
-                close $rdr;
+            BSD::Resource::setrlimit( BSD::Resource::RLIMIT_NPROC(), 3, 3 ) or die "setrlimit()";
 
-                my $main_pid = $$;
+            close $rdr;
 
-                local $SIG{'__DIE__'} = sub {
-                    exit 1 if $$ != $main_pid;
-                    my $err = shift;
-                    print {$wtr} "$err$/";
-                    exit 1;
-                };
+            my $main_pid = $$;
 
-                IO::Die->fork() while 1;
-            }
-            finally {
-                exit;
-            }
+            local $SIG{'__DIE__'} = sub {
+                exit 1 if $$ != $main_pid;
+                my $err = shift;
+                print {$wtr} "$err$/";
+                exit 1;
+            };
+
+            IO::Die->fork() while 1;
         };
 
         close $wtr;
@@ -2024,33 +2011,30 @@ sub test_pipe_failure : Tests(2) {
         pipe my $rdr, my $wtr;
 
         my $pid = fork || do {
-            try {
-                $> = $uid;
-                $) = $gid;
-                $< = $uid;
+            my $at_end = t::IO::Die::Finally->new( sub { exit } );
 
-                close $rdr;
-                alarm 60;
-                my @pipes;
+            $> = $uid;
+            $) = $gid;
+            $< = $uid;
 
-                local $SIG{'__DIE__'} = sub {
-                    my $err = shift;
+            close $rdr;
+            alarm 60;
+            my @pipes;
 
-                    close $_ for splice @pipes;
+            local $SIG{'__DIE__'} = sub {
+                my $err = shift;
 
-                    print {$wtr} "$err$/";
+                close $_ for splice @pipes;
 
-                    exit 1;
-                };
+                print {$wtr} "$err$/";
 
-                while (1) {
-                    IO::Die->pipe( my $rdr, my $wtr );
-                    push @pipes, $rdr, $wtr;
-                }
-            }
-            finally {
-                exit;
+                exit 1;
             };
+
+            while (1) {
+                IO::Die->pipe( my $rdr, my $wtr );
+                push @pipes, $rdr, $wtr;
+            }
         };
 
         close $wtr;
@@ -2445,14 +2429,14 @@ sub _bind_free_port {
 
     my $port;
 
+    local $@;
+
     alarm 60;
     while (1) {
         $port = int( 60000 * rand ) + 1024;
         my $sockname = Socket::pack_sockaddr_in( $port, &Socket::INADDR_ANY );
         my $ok;
-        try {
-            $ok = IO::Die->bind( $socket, $sockname );
-        };
+        eval { $ok = IO::Die->bind( $socket, $sockname ); };
         last if $ok;
     }
 
@@ -2491,8 +2475,9 @@ sub test_socket_client : Tests(4) {
         close $p_rd;
 
         my $sent_USR1;
+        my $at_end = t::IO::Die::Finally->new( sub { $sent_USR1 ||= kill 'USR1', getppid() } );
 
-        try {
+        eval {
             IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
 
             my $port = _bind_free_port($srv_fh);
@@ -2504,14 +2489,12 @@ sub test_socket_client : Tests(4) {
             $sent_USR1 = kill 'USR1', getppid();
 
             IO::Die->accept( my $redshirt_fh, $srv_fh );
-        }
-        catch {
-            diag explain [ 'child', $_ ];
-            die $_;
-        }
-        finally {
-            $sent_USR1 ||= kill 'USR1', getppid();
         };
+        if ($@) {
+            my $err = $@;
+            diag explain [ 'child', $err ];
+            die $err;
+        }
 
         exit;
     };
@@ -2520,7 +2503,14 @@ sub test_socket_client : Tests(4) {
 
     IO::Die->read( $p_rd, my $sockname, 1024 );
 
-    try {
+    my $at_end = t::IO::Die::Finally->new(
+        sub {
+            local $?;
+            waitpid $child_pid, 0;
+        }
+    );
+
+    eval {
         sleep 1 while !$got_USR1;
 
         IO::Die->socket( my $cl_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
@@ -2533,15 +2523,12 @@ sub test_socket_client : Tests(4) {
         );
 
         is( $! + 0, 7, '...and leaves $! alone' );
-    }
-    catch {
-        diag explain $_;
-        die $_;
-    }
-    finally {
-        local $?;
-        waitpid $child_pid, 0;
     };
+    if ($@) {
+        my $err = $@;
+        diag explain $err;
+        die $err;
+    }
 
     return;
 }
@@ -2578,138 +2565,138 @@ sub test_socket_server : Tests(24) {
 
     my $sent_USR1;
 
-    try {
-        local ( $@, $!, $^E );
-        $! = 7;
+    my $at_end = t::IO::Die::Finally->new(
+        sub {
+            $sent_USR1 ||= IO::Die->kill( 'USR1', $child_pid );
+            do { local $?; waitpid $child_pid, 0 };
+        }
+    );
 
-        IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
+    local ( $@, $!, $^E );
+    $! = 7;
 
-        eval { IO::Die->setsockopt( $srv_fh, -1, &Socket::SO_DEBUG, 7 ) };
-        cmp_deeply(
-            $@,
-            all(
-                re('SocketSetOpt'),
-                re(-1),
-                re(&Socket::SO_DEBUG),
-                re(7),
-            ),
-            'setsockopt() failure',
-        );
+    IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+    eval { IO::Die->setsockopt( $srv_fh, -1, &Socket::SO_DEBUG, 7 ) };
+    cmp_deeply(
+        $@,
+        all(
+            re('SocketSetOpt'),
+            re(-1),
+            re(&Socket::SO_DEBUG),
+            re(7),
+        ),
+        'setsockopt() failure',
+    );
 
-        ok(
-            IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_DEBUG, 1 ),
-            'setsockopt() per perldoc perlipc',
-        );
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+    ok(
+        IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_DEBUG, 1 ),
+        'setsockopt() per perldoc perlipc',
+    );
 
-        my $sockopt = IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_DEBUG );
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
-        like(
-            $sockopt,
-            qr<[\1\2\4\x{08}]>,
-            'getsockopt(): one of the bytes of SOL_SOCKET/SO_DEBUG is nonzero',
-        ) or diag Data::Dumper::Dumper($sockopt);
+    my $sockopt = IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_DEBUG );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+    like(
+        $sockopt,
+        qr<[\1\2\4\x{08}]>,
+        'getsockopt(): one of the bytes of SOL_SOCKET/SO_DEBUG is nonzero',
+    ) or diag Data::Dumper::Dumper($sockopt);
 
-        eval { IO::Die->bind( $srv_fh, '@@@@' ) };
-        cmp_deeply(
-            $@,
-            all(
-                re('SocketBind'),
-                re(qr<@@@@>),
-            ),
-            'bind() failure',
-        );
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+    eval { IO::Die->bind( $srv_fh, '@@@@' ) };
+    cmp_deeply(
+        $@,
+        all(
+            re('SocketBind'),
+            re(qr<@@@@>),
+        ),
+        'bind() failure',
+    );
 
-        my $port = _bind_free_port($srv_fh);
-        IO::Die->print( $p_wr, Socket::pack_sockaddr_in( $port, &Socket::INADDR_ANY ) );
-        IO::Die->close($p_wr);
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
-        is( 0 + $!, 7, 'successful bind() leaves $! alone' );
+    my $port = _bind_free_port($srv_fh);
+    IO::Die->print( $p_wr, Socket::pack_sockaddr_in( $port, &Socket::INADDR_ANY ) );
+    IO::Die->close($p_wr);
 
-        eval { IO::Die->listen( \*STDERR, -1 ) };
-        cmp_deeply(
-            $@,
-            all(
-                re('SocketListen'),
-                re(qr<-1>),
-            ),
-            'listen() failure',
-        );
+    is( 0 + $!, 7, 'successful bind() leaves $! alone' );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+    eval { IO::Die->listen( \*STDERR, -1 ) };
+    cmp_deeply(
+        $@,
+        all(
+            re('SocketListen'),
+            re(qr<-1>),
+        ),
+        'listen() failure',
+    );
 
-        ok(
-            IO::Die->listen( $srv_fh, 2 ),
-            'listen() per perldoc perlipc',
-        );
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+    ok(
+        IO::Die->listen( $srv_fh, 2 ),
+        'listen() per perldoc perlipc',
+    );
 
-        $sent_USR1 = IO::Die->kill( 'USR1', $child_pid );
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
-        my $paddr = IO::Die->accept( my $cl_fh, $srv_fh );
+    $sent_USR1 = IO::Die->kill( 'USR1', $child_pid );
 
-        isa_ok( $cl_fh, 'GLOB', 'auto-vivify the filehandle on accept()' );
+    my $paddr = IO::Die->accept( my $cl_fh, $srv_fh );
 
-        ok(
-            $paddr,
-            'accept() per perldoc perlipc',
-        );
+    isa_ok( $cl_fh, 'GLOB', 'auto-vivify the filehandle on accept()' );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+    ok(
+        $paddr,
+        'accept() per perldoc perlipc',
+    );
 
-        my ( $accept_port, $accept_iaddr ) = Socket::unpack_sockaddr_in($paddr);
-        like(
-            $accept_port,
-            qr<\A[1-9][0-9]*\z>,
-            'accept() port',
-        );
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
-        is( $accept_iaddr, Socket::inet_aton('127.0.0.1'), 'accept() address' );
+    my ( $accept_port, $accept_iaddr ) = Socket::unpack_sockaddr_in($paddr);
+    like(
+        $accept_port,
+        qr<\A[1-9][0-9]*\z>,
+        'accept() port',
+    );
 
-        is(
-            IO::Die->syswrite( $cl_fh, "from server\n" ),
-            12,
-            'print() to connect() socket',
-        );
+    is( $accept_iaddr, Socket::inet_aton('127.0.0.1'), 'accept() address' );
 
-        ok(
-            IO::Die->shutdown( $cl_fh, &Socket::SHUT_WR ),
-            'shutdown() writing',
-        );
+    is(
+        IO::Die->syswrite( $cl_fh, "from server\n" ),
+        12,
+        'print() to connect() socket',
+    );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
+    ok(
+        IO::Die->shutdown( $cl_fh, &Socket::SHUT_WR ),
+        'shutdown() writing',
+    );
 
-        IO::Die->read( $cl_fh, my $from_client, 2048 );
-        is( $from_client, 'from client', 'read from connect() socket' );
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
-        #NB: NetBSD doesn't indicate an error when you try to
-        #shutdown( $cl_fh, &Socket::SHUT_WR ) a second time. (Bug?)
-        #cf. https://rt.perl.org/Ticket/Display.html?id=125465
-        #
-        eval { IO::Die->shutdown( \*STDOUT, &Socket::SHUT_WR ) };
-        cmp_deeply(
-            $@,
-            all(
-                re('SocketShutdown'),
-            ),
-            'shutdown() failure',
-        );
+    IO::Die->read( $cl_fh, my $from_client, 2048 );
+    is( $from_client, 'from client', 'read from connect() socket' );
 
-        is( 0 + $!, 7, '...and leaves $! alone' );
-    }
-    catch { die $_ }
-    finally {
-        $sent_USR1 ||= IO::Die->kill( 'USR1', $child_pid );
-        do { local $?; waitpid $child_pid, 0 };
-    };
+    #NB: NetBSD doesn't indicate an error when you try to
+    #shutdown( $cl_fh, &Socket::SHUT_WR ) a second time. (Bug?)
+    #cf. https://rt.perl.org/Ticket/Display.html?id=125465
+    #
+    eval { IO::Die->shutdown( \*STDOUT, &Socket::SHUT_WR ) };
+    cmp_deeply(
+        $@,
+        all(
+            re('SocketShutdown'),
+        ),
+        'shutdown() failure',
+    );
+
+    is( 0 + $!, 7, '...and leaves $! alone' );
 
     return;
 }
@@ -2781,7 +2768,9 @@ sub test_kill : Tests(8) {
         pipe my $rdr, my $wtr;
 
         my $parasite_pid = fork || do {
-            try {
+            my $at_end = t::IO::Die::Finally->new( sub { exit } );
+
+            eval {
                 close $rdr;
 
                 $> = $nobody_uid;
@@ -2792,13 +2781,10 @@ sub test_kill : Tests(8) {
                 $^E = 5;
 
                 IO::Die->kill( 'TERM', $parent_pid );
-            }
-            catch {
-                print {$wtr} join( $/, 0 + $!, 0 + $^E, $_ );
-            }
-            finally {
-                exit;
             };
+            if ($@) {
+                print {$wtr} join( $/, 0 + $!, 0 + $^E, $@ );
+            }
         };
 
         close $wtr;
@@ -2922,7 +2908,7 @@ sub test_utime : Tests(7) {
     );
 
     local $@;
-    eval { IO::Die->utime( 300, 301, "$tempfile/not/there" ) };
+    eval { IO::Die->utime( 300, 301, catfile( $tempfile, 'not', 'there' ) ) };
     cmp_deeply(
         $@,
         all(
@@ -3000,6 +2986,19 @@ sub _CREATE_ERROR {
         type  => $type,
         attrs => {@attrs},
     };
+}
+
+package t::IO::Die::Finally;
+
+sub new {
+    my ( $class, $todo_cr ) = @_;
+
+    return bless [$todo_cr], $class;
+}
+
+sub DESTROY {
+    my ($self) = @_;
+    return $self->[0]->();
 }
 
 1;

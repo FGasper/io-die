@@ -26,7 +26,7 @@
       },
       "test" : {
          "requires" : {
-            "Capture::Tiny" : "0.30",
+            "Capture::Tiny" : "0.24",
             "Test::Class" : "0.41",
             "Test::Deep" : "0.114",
             "Test::NoWarnings" : "0.01",
