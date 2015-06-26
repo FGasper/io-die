@@ -29,8 +29,6 @@ use Data::Dumper;
 use Test::Deep qw(:v1);
 use Test::Exception;
 
-use Capture::Tiny ();
-
 use File::Basename ();
 use File::Path     ();
 use File::Spec::Functions;
@@ -367,30 +365,37 @@ sub test_open_to_a_command : Tests(9) {
 
     local $@;
 
-    eval {
-        $stdout = Capture::Tiny::capture_stdout(
-            sub {
-                $pid = IO::Die->open( $rfh, '|-', 'perl -e "print <>"' );
-                IO::Die->print( $rfh, 'ohyeah' );
-                IO::Die->close($rfh);
-            }
-        );
-    };
-    ok( !$@, 'open() from a space-delimited command' );
-    is( $stdout, "ohyeah", '...and it really does open() to the command' );
-    like( $pid, qr<\A[0-9]+\z>, '...and it returns the PID' );
+    my ($tempfile) = $self->tempfile();
 
     eval {
-        $stdout = Capture::Tiny::capture_stdout(
-            sub {
-                IO::Die->open( $rfh, '|-', 'perl', -e => 'print 123; print <>' );
-                IO::Die->print( $rfh, 'ohyeah' );
-                IO::Die->close($rfh);
-            }
-        );
+        $pid = IO::Die->open( $rfh, '|-', qq[perl -e "open TEMP, '>', '$tempfile'; print TEMP <>"] );
+        IO::Die->print( $rfh, 'ohyeah' );
+        IO::Die->close($rfh);
+    };
+    ok( !$@, 'open() from a space-delimited command' );
+
+    is(
+        do { open my $fh, '<', $tempfile; <$fh> },
+        "ohyeah",
+        '...and it really does open() to the command',
+    );
+
+    like( $pid, qr<\A[0-9]+\z>, '...and it returns the PID' );
+
+    $tempfile = $self->tempfile();
+
+    eval {
+        IO::Die->open( $rfh, '|-', 'perl', -e => "open TEMP, '>', '$tempfile'; print TEMP 123; print TEMP <>" );
+        IO::Die->print( $rfh, 'ohyeah' );
+        IO::Die->close($rfh);
     };
     ok( !$@, 'open() to a command with list args' );
-    is( $stdout, '123ohyeah', '...and it obeys parameters and still open()s to the command' );
+
+    is(
+        do { open my $fh, '<', $tempfile; <$fh> },
+        '123ohyeah',
+        '...and it obeys parameters and still open()s to the command',
+    );
 
     dies_ok(
         sub { IO::Die->open( $rfh, '|-', 'echo hi', undef ) },

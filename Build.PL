@@ -14,7 +14,6 @@ my $builder = Module::Build->new(
     },
     test_requires => {
         perl            => '5.008',
-        'Capture::Tiny' => '0.24',
         'Test::Class' => '0.41',
         'Test::Deep'  => '0.114',
         'Test::NoWarnings' => '0.01',
