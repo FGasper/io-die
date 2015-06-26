@@ -34,6 +34,8 @@ use File::Path     ();
 use File::Spec::Functions;
 use File::Temp ();
 
+use IO::Handle ();
+
 use IO::Die ();
 
 if ( !caller ) {
@@ -538,6 +540,8 @@ sub test_print_with_filehandle : Tests(10) {
 
     my ( $file, $fh ) = $self->tempfile();
 
+    $fh->autoflush(1);
+
     local $! = 7;
 
     my $printed;
@@ -545,8 +549,10 @@ sub test_print_with_filehandle : Tests(10) {
         sub { $printed = IO::Die->print( $fh, 'ha', 'ha' ) },
         'print() to a file with a given string',
     );
+
     ok( $printed, '...and it returns a true value' );
-    is( do { local $!; scalar `cat $file` }, 'haha', '...and the print actually happened' );
+
+    is( $self->_cat($file), 'haha', '...and the print actually happened' );
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
@@ -556,7 +562,10 @@ sub test_print_with_filehandle : Tests(10) {
             'print() to a file from $_',
         );
         ok( $printed, '...and it returns a true value' );
-        is( ( scalar `cat $file` ), 'hahahoho', '...and the print actually happened' );
+
+        do { local ( $!, $^E ); close $fh };
+
+        is( $self->_cat($file), 'hahahoho', '...and the print actually happened' );
     }
 
     close $fh;
@@ -579,6 +588,8 @@ sub test_print_without_filehandle : Tests(9) {
     {
         my ( $file, $fh ) = $self->tempfile();
 
+        $fh->autoflush(1);
+
         my $orig_fh = $self->_overwrite_stdout($fh);
         my $at_end = t::IO::Die::Finally->new( sub { select $orig_fh } );
 
@@ -588,7 +599,7 @@ sub test_print_without_filehandle : Tests(9) {
             'print() to a file with a given string',
         );
         ok( $printed, '...and it returns a true value' );
-        is( ( scalar `cat $file` ), 'haha', '...and the print actually happened' );
+        is( $self->_cat($file), 'haha', '...and the print actually happened' );
 
         for ('hoho') {
             lives_ok(
@@ -596,7 +607,7 @@ sub test_print_without_filehandle : Tests(9) {
                 'print() to a file from $_',
             );
             ok( $printed, '...and it returns a true value' );
-            is( ( scalar `cat $file` ), 'hahahoho', '...and the print actually happened' );
+            is( $self->_cat($file), 'hahahoho', '...and the print actually happened' );
         }
 
         close $fh;
@@ -629,17 +640,17 @@ sub test_syswrite : Tests(14) {
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    is( $printed, 4, '...and it returns the number of bytes' );
-    is( ( scalar `cat $file` ), 'haha', '...and the write actually happened' );
+    is( $printed,           4,      '...and it returns the number of bytes' );
+    is( $self->_cat($file), 'haha', '...and the write actually happened' );
 
     IO::Die->syswrite( $fh, 'haha', 1 );
-    is( ( scalar `cat $file` ), 'hahah', 'We obey LENGTH' );
+    is( $self->_cat($file), 'hahah', 'We obey LENGTH' );
 
     IO::Die->syswrite( $fh, 'haha', 1, 1 );
-    is( ( scalar `cat $file` ), 'hahaha', 'We obey OFFSET' );
+    is( $self->_cat($file), 'hahaha', 'We obey OFFSET' );
 
     IO::Die->syswrite( $fh, 'abcdefg', 1, -3 );
-    is( ( scalar `cat $file` ), 'hahahae', 'We obey negative OFFSET' );
+    is( $self->_cat($file), 'hahahae', 'We obey negative OFFSET' );
 
     close $fh;
 
@@ -832,7 +843,7 @@ sub test_truncate : Tests(10) {
 
     is( 0 + $!, 7, '...and it left $! alone' );
 
-    is( do { local $!; scalar `cat $file` }, substr( $alphabet, 0, 10 ), 'truncate() does its thing' );
+    is( $self->_cat($file), substr( $alphabet, 0, 10 ), 'truncate() does its thing' );
 
     IO::Die->close($fh);
 
@@ -1019,6 +1030,22 @@ sub test_closedir : Tests(5) {
     return;
 }
 
+sub _touch {
+    my ( $self, $path ) = @_;
+
+    local ( $!, $^E );
+    open my $fh, '>>', $path;
+    return;
+}
+
+sub _cat {
+    my ( $self, $path ) = @_;
+
+    local ( $!, $^E, $/ );
+    open my $fh, '<', $path;
+    return scalar <$fh>;
+}
+
 sub test_unlink : Tests(10) {
     my ($self) = @_;
 
@@ -1026,7 +1053,7 @@ sub test_unlink : Tests(10) {
 
     for my $n ( 0 .. 9 ) {
         my $path = catfile( $dir, "redshirt$n" );
-        `touch $path`;
+        $self->_touch($path);
     }
 
     local $! = 7;
@@ -1613,7 +1640,7 @@ sub test_lstat : Tests(7) {
     my $dir = $self->tempdir();
 
     my $empty_path = catfile( $dir, 'empty' );
-    `touch $empty_path`;
+    $self->_touch($empty_path);
 
     my $time_before = time;
     symlink 'empty', catfile( $dir, 'symlink' );
@@ -1680,7 +1707,7 @@ sub test_link : Tests(6) {
     my $dir = $self->tempdir();
     my $filepath = catfile( $dir, 'file' );
 
-    `touch $filepath`;
+    $self->_touch($filepath);
 
     local $! = 7;
 
@@ -1723,7 +1750,7 @@ sub test_symlink : Tests(7) {
     my $dir = $self->tempdir();
     my $filepath = catfile( $dir, 'file' );
 
-    `touch $filepath`;
+    $self->_touch($filepath);
 
     local $! = 7;
 
@@ -1773,7 +1800,7 @@ sub test_readlink : Tests(10) {
     symlink 'haha', catfile( $dir, "mylink" );
 
     my $file_path = catfile( $dir, "myfile" );
-    `touch $file_path`;
+    $self->_touch($file_path);
 
     $! = 7;
 
@@ -1841,7 +1868,7 @@ sub test_rename : Tests(6) {
     my $dir = $self->tempdir();
     my $filepath = catfile( $dir, "file" );
 
-    `touch $filepath`;
+    $self->_touch($filepath);
 
     local $! = 7;
 
@@ -2796,8 +2823,8 @@ sub test_kill : Tests(8) {
         my $ret = IO::Die->kill( 'TERM', $pid );
 
         is( $ret,    1, 'kill() returned as it should' );
-        is( 0 + $!,  5, '...and it didn’t touch $!' );
-        is( 0 + $^E, 5, '...and it didn’t touch $^E' );
+        is( 0 + $!,  5, '...and it didn’t affect $!' );
+        is( 0 + $^E, 5, '...and it didn’t affect $^E' );
 
         my $parent_pid = $$;
 
@@ -2829,8 +2856,8 @@ sub test_kill : Tests(8) {
 
         do { local $?; waitpid $parasite_pid, 0 };
 
-        is( $res[0], 5, 'kill() doesn’t touch $! on failure' );
-        is( $res[1], 5, 'kill() doesn’t touch $^E on failure' );
+        is( $res[0], 5, 'kill() doesn’t affect $! on failure' );
+        is( $res[1], 5, 'kill() doesn’t affect $^E on failure' );
 
         like( $res[2], qr<Kill>,        'kill() as user on a root-owned process' );
         like( $res[2], qr<TERM>,        'the signal is in the error' );
