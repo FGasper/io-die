@@ -2650,14 +2650,18 @@ sub test_socket_server : Tests(24) {
 
     is( 0 + $!, 7, '...and leaves $! alone' );
 
+    #NOTE: The specific options that are set and read here are finicky
+    #among different OSes. The example below is in “perldoc -f setsockopt”,
+    #which hopefully means it’s generic enough to work just about anywhere.
+
     ok(
-        eval { IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_BROADCAST, 1 ) },
+        eval { IO::Die->setsockopt( $srv_fh, &Socket::IPPROTO_TCP, &Socket::TCP_NODELAY, 1 ) },
         'setsockopt() per perldoc perlipc',
     ) or diag explain $@;
 
     is( 0 + $!, 7, '...and leaves $! alone' );
 
-    my $sockopt = eval { IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_BROADCAST ) };
+    my $sockopt = eval { IO::Die->getsockopt( $srv_fh, &Socket::IPPROTO_TCP, &Socket::TCP_NODELAY ) };
     my $err = $@;
 
     like(
