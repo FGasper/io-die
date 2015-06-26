@@ -776,7 +776,7 @@ sub fcntl {
 
     local ( $!, $^E );
     my $ok = CORE::fcntl( $fh, $func, $scalar ) or do {
-        $NS->__THROW('Fcntl');
+        $NS->__THROW( 'Fcntl', function => $func, scalar => $scalar );
     };
 
     return $ok;
@@ -1213,7 +1213,7 @@ Additional attributes for each type are listed below.
 
 =item Exec              path, arguments
 
-=item Fcntl
+=item Fcntl             function, scalar
 
 =item FileOpen          mode, path; OPTIONAL: mask
 
