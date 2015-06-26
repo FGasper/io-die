@@ -2651,9 +2651,9 @@ sub test_socket_server : Tests(24) {
     is( 0 + $!, 7, '...and leaves $! alone' );
 
     ok(
-        IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_BROADCAST, 1 ),
+        eval { IO::Die->setsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_BROADCAST, 1 ) },
         'setsockopt() per perldoc perlipc',
-    );
+    ) or diag explain $@;
 
     is( 0 + $!, 7, '...and leaves $! alone' );
 
