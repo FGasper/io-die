@@ -26,7 +26,6 @@
       },
       "test" : {
          "requires" : {
-            "Capture::Tiny" : "0.24",
             "Test::Class" : "0.41",
             "Test::Deep" : "0.114",
             "Test::NoWarnings" : "0.01",
@@ -46,5 +45,6 @@
          "http://www.perlfoundation.org/artistic_license_2_0"
       ]
    },
-   "version" : "0.053"
+   "version" : "0.053",
+   "x_serialization_backend" : "JSON::PP version 2.27203"
 }

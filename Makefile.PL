@@ -3,11 +3,11 @@ require 5.006;
 use ExtUtils::MakeMaker;
 WriteMakefile
 (
-  'NAME' => 'IO::Die',
-  'VERSION_FROM' => 'lib/IO/Die.pm',
-  'PREREQ_PM' => {},
+  'PL_FILES' => {},
   'INSTALLDIRS' => 'site',
+  'NAME' => 'IO::Die',
   'EXE_FILES' => [],
-  'PL_FILES' => {}
+  'VERSION_FROM' => 'lib/IO/Die.pm',
+  'PREREQ_PM' => {}
 )
 ;

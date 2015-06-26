@@ -1,5 +1,10 @@
 Revision history for IO-Die
 
+0.054   2015-06-26
+        Socket test fixes against Cygwin
+        remove Capture::Tiny as testing requirement
+        Fcntl errors to get parameters
+
 0.053   2015-06-25
         More test fixes, esp. Linux socket tests
 
