@@ -2657,7 +2657,8 @@ sub test_socket_server : Tests(24) {
 
     is( 0 + $!, 7, '...and leaves $! alone' );
 
-    my $sockopt = IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_BROADCAST );
+    my $sockopt = eval { IO::Die->getsockopt( $srv_fh, &Socket::SOL_SOCKET, &Socket::SO_BROADCAST ) };
+    my $err = $@;
 
     like(
         $sockopt,
@@ -2666,7 +2667,7 @@ sub test_socket_server : Tests(24) {
       )
       or do {
         local $Data::Dumper::Useqq = 1;
-        diag Data::Dumper::Dumper($sockopt);
+        diag Data::Dumper::Dumper($sockopt, $err);
       };
 
     is( 0 + $!, 7, '...and leaves $! alone' );
