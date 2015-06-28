@@ -26,7 +26,7 @@ use Fcntl;
 use Test::More;
 use Test::NoWarnings;
 use Data::Dumper;
-use Test::Deep qw(:v1);
+use Test::Deep;
 use Test::Exception;
 
 use File::Basename ();
