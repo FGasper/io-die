@@ -19,10 +19,10 @@ name: IO-Die
 provides:
   IO::Die:
     file: lib/IO/Die.pm
-    version: '0.053'
+    version: '0.055'
 requires:
   perl: '5.006'
 resources:
-  license: http://www.perlfoundation.org/artistic_license_2_0
-version: '0.053'
+  license: http://opensource.org/licenses/artistic-license-2.0.php
+version: '0.055'
 x_serialization_backend: 'CPAN::Meta::YAML version 0.016'
