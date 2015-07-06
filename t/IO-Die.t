@@ -2598,6 +2598,7 @@ sub test_socket_client : Tests(4) {
 }
 
 sub test_socket_server : Tests(24) {
+    my ($self) = @_;
 
     my $proto = getprotobyname('tcp');
 
@@ -2676,7 +2677,7 @@ sub test_socket_server : Tests(24) {
       )
       or do {
         local $Data::Dumper::Useqq = 1;
-        diag Data::Dumper::Dumper($sockopt, $err);
+        diag Data::Dumper::Dumper( $sockopt, $err );
       };
 
     is( 0 + $!, 7, '...and leaves $! alone' );
@@ -2762,7 +2763,8 @@ sub test_socket_server : Tests(24) {
     #shutdown( $cl_fh, &Socket::SHUT_WR ) a second time. (Bug?)
     #cf. https://rt.perl.org/Ticket/Display.html?id=125465
     #
-    eval { IO::Die->shutdown( \*STDOUT, &Socket::SHUT_WR ) };
+    my ( undef, $fh ) = $self->tempfile();
+    eval { IO::Die->shutdown( $fh, &Socket::SHUT_WR ) };
     cmp_deeply(
         $@,
         all(
@@ -2842,6 +2844,11 @@ sub test_kill : Tests(8) {
 
         pipe my $rdr, my $wtr;
 
+        #DragonflyBSD allows an unprivileged (?) subprocess
+        #to send SIGTERM to a root-owned parent process. (?!?!?)
+        my $got_SIGTERM;
+        local $SIG{'TERM'} = sub { $got_SIGTERM++ };
+
         my $parasite_pid = fork || do {
             my $at_end = t::IO::Die::Finally->new( sub { exit } );
 
@@ -2867,6 +2874,10 @@ sub test_kill : Tests(8) {
         close $rdr;
 
         do { local $?; waitpid $parasite_pid, 0 };
+
+        if ($got_SIGTERM) {
+            skip "$^O: Unprivileged child process can SIGTERM a root-owned parent process?!?", 5;
+        }
 
         is( $res[0], 5, 'kill() doesn’t affect $! on failure' );
         is( $res[1], 5, 'kill() doesn’t affect $^E on failure' );
