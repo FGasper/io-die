@@ -1,5 +1,8 @@
 Revision history for IO-Die
 
+0.056   2015-07-06
+        Socket and kill() test fixes against DragonflyBSD
+
 0.055   2015-06-30
         Socket test fixes against OpenBSD
 
