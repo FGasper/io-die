@@ -1642,17 +1642,15 @@ sub test_lstat : Tests(7) {
     my $empty_path = catfile( $dir, 'empty' );
     $self->_touch($empty_path);
 
-    my $time_before = time;
     symlink 'empty', catfile( $dir, 'symlink' );
-    my $time_after = time;
 
-    my @file_stat = lstat $empty_path;
+    my @symlink_stat = lstat $empty_path;
 
     #sanity
-    die "huh?" if "@file_stat" ne join( ' ', stat catfile( $dir, 'symlink' ) );
+    die "huh?" if "@symlink_stat" ne join( ' ', stat catfile( $dir, 'symlink' ) );
 
     my @link_stat_cmp = lstat catfile( $dir, 'symlink' );
-    $_ = any( $time_before .. $time_after ) for @link_stat_cmp[ 8 .. 10 ];
+    $_ = ignore() for @link_stat_cmp[ 8 .. 10 ];
 
     local $! = 7;
 
