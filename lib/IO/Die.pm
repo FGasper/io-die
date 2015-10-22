@@ -12,7 +12,7 @@ IO::Die - Namespaced, error-checked I/O
 
 =head1 VERSION
 
-Version 0.056
+Version 0.057
 
 =cut
 
