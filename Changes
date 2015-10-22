@@ -1,5 +1,8 @@
 Revision history for IO-Die
 
+0.057   2015-10-22
+        Lazy-load functions by default
+
 0.056   2015-07-06
         Socket and kill() test fixes against DragonflyBSD
 
