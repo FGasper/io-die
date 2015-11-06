@@ -4,7 +4,7 @@
       "Felipe Gasper <felipe@cpanel.net>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Module::Build version 0.4205",
+   "generated_by" : "Module::Build version 0.4205, CPAN::Meta::Converter version 2.150005",
    "license" : [
       "artistic_2"
    ],
@@ -14,15 +14,18 @@
    },
    "name" : "IO-Die",
    "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "0"
+         }
+      },
       "configure" : {
          "requires" : {
-            "Module::Build" : "0"
+            "ExtUtils::MakeMaker" : "0"
          }
       },
       "runtime" : {
-         "requires" : {
-            "perl" : "5.006"
-         }
+         "requires" : {}
       },
       "test" : {
          "requires" : {

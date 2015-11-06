@@ -3,12 +3,13 @@ abstract: 'Namespaced, error-checked I/O'
 author:
   - 'Felipe Gasper <felipe@cpanel.net>'
 build_requires:
+  ExtUtils::MakeMaker: '0'
   Test::Class: '0.41'
   Test::Deep: '0.114'
   Test::NoWarnings: '0.01'
   perl: '5.008'
 configure_requires:
-  Module::Build: '0'
+  ExtUtils::MakeMaker: '0'
 dynamic_config: 0
 generated_by: 'Module::Build version 0.4205, CPAN::Meta::Converter version 2.150005'
 license: artistic_2
@@ -20,8 +21,7 @@ provides:
   IO::Die:
     file: lib/IO/Die.pm
     version: '0.057'
-requires:
-  perl: '5.006'
+requires: {}
 resources:
   license: http://opensource.org/licenses/artistic-license-2.0.php
 version: '0.057'
