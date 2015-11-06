@@ -2327,9 +2327,10 @@ sub test_socket : Tests(5) {
 
     for my $domain (&Socket::AF_INET) {
         eval { IO::Die->socket( my $socket, $domain, &Socket::SOCK_STREAM, -1 ); };
+        my $err = $@;
 
         cmp_deeply(
-            $@,
+            $err,
             all(
                 re($domain),
                 re('SocketOpen'),
@@ -2343,9 +2344,10 @@ sub test_socket : Tests(5) {
 
     for my $type (&Socket::SOCK_STREAM) {
         eval { IO::Die->socket( my $socket, &Socket::AF_INET, $type, -1 ); };
+        my $err = $@;
 
         cmp_deeply(
-            $@,
+            $err,
             all(
                 re($type),
                 re('SocketOpen'),
@@ -2375,8 +2377,10 @@ sub test_send_recv : Tests(6) {
         local $SIG{'__WARN__'} = sub { };
         IO::Die->send( $skt1, 'msg2', &Socket::MSG_DONTROUTE );
     };
+    my $err = $@;
+
     cmp_deeply(
-        $@,
+        $err,
         all(
             re(qr<SocketSend>),
             re(&Socket::MSG_DONTROUTE),
@@ -2392,8 +2396,10 @@ sub test_send_recv : Tests(6) {
         local $SIG{'__WARN__'} = sub { };
         IO::Die->recv( $skt2, my $n, &Socket::MSG_DONTROUTE );
     };
+    $err = $@;
+
     cmp_deeply(
-        $@,
+        $err,
         all(
             re(qr<SocketReceive>),
             re(0),
@@ -2450,9 +2456,10 @@ sub test_socketpair : Tests(11) {
 
     for my $domain (&Socket::AF_INET) {
         eval { IO::Die->socketpair( $skt1, $skt2, $domain, &Socket::SOCK_STREAM, -1 ); };
+        my $err = $@;
 
         cmp_deeply(
-            $@,
+            $err,
             all(
                 re($domain),
                 re('SocketPair'),
@@ -2466,9 +2473,10 @@ sub test_socketpair : Tests(11) {
 
     for my $type (&Socket::SOCK_STREAM) {
         eval { IO::Die->socketpair( $skt1, $skt2, &Socket::AF_INET, $type, -1 ); };
+        my $err = $@;
 
         cmp_deeply(
-            $@,
+            $err,
             all(
                 re($type),
                 re('SocketPair'),
@@ -2641,8 +2649,10 @@ sub test_socket_server : Tests(24) {
     IO::Die->socket( my $srv_fh, &Socket::PF_INET, &Socket::SOCK_STREAM, $proto );
 
     eval { IO::Die->setsockopt( $srv_fh, -1, &Socket::SO_DEBUG, 7 ) };
+    my $err = $@;
+
     cmp_deeply(
-        $@,
+        $err,
         all(
             re('SocketSetOpt'),
             re(-1),
@@ -2666,7 +2676,7 @@ sub test_socket_server : Tests(24) {
     is( 0 + $!, 7, '...and leaves $! alone' );
 
     my $sockopt = eval { IO::Die->getsockopt( $srv_fh, &Socket::IPPROTO_TCP, &Socket::TCP_NODELAY ) };
-    my $err = $@;
+    $err = $@;
 
     like(
         $sockopt,
@@ -2681,8 +2691,10 @@ sub test_socket_server : Tests(24) {
     is( 0 + $!, 7, '...and leaves $! alone' );
 
     eval { IO::Die->bind( $srv_fh, '@@@@' ) };
+    $err = $@;
+
     cmp_deeply(
-        $@,
+        $err,
         all(
             re('SocketBind'),
             re(qr<@@@@>),
@@ -2701,8 +2713,10 @@ sub test_socket_server : Tests(24) {
     is( 0 + $!, 7, 'successful bind() leaves $! alone' );
 
     eval { IO::Die->listen( \*STDERR, -1 ) };
+    $err = $@;
+
     cmp_deeply(
-        $@,
+        $err,
         all(
             re('SocketListen'),
             re(qr<-1>),
@@ -2763,8 +2777,10 @@ sub test_socket_server : Tests(24) {
     #
     my ( undef, $fh ) = $self->tempfile();
     eval { IO::Die->shutdown( $fh, &Socket::SHUT_WR ) };
+    $err = $@;
+
     cmp_deeply(
-        $@,
+        $err,
         all(
             re('SocketShutdown'),
         ),
@@ -2950,8 +2966,10 @@ sub test_fileno : Tests(4) {
 
     local $@;
     eval { IO::Die->fileno($tfh) };
+    my $err = $@;
+
     cmp_deeply(
-        $@,
+        $err,
         all(
             re(qr<Fileno>),
         ),
@@ -2993,8 +3011,10 @@ sub test_utime : Tests(7) {
 
     local $@;
     eval { IO::Die->utime( 300, 301, catfile( $tempfile, 'not', 'there' ) ) };
+    my $err = $@;
+
     cmp_deeply(
-        $@,
+        $err,
         all(
             re(qr<Utime>),
         ),
@@ -3025,9 +3045,10 @@ sub test_flock : Tests(4) {
         local $SIG{'__WARN__'} = sub { };
         IO::Die->flock( $tfh, &Fcntl::LOCK_UN );
     };
+    my $err = $@;
 
     cmp_deeply(
-        $@,
+        $err,
         all(
             re(qr<Flock>),
             re(&Fcntl::LOCK_UN),
